@@ -1,3 +1,5 @@
 Debug
 *vcxproj*
 pch*
+.vs
+*.sln
