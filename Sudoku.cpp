@@ -42,17 +42,61 @@ int main()
 		0,5,1,0,0,4,0,0,0,
 		2,0,0,5,8,7,0,0,0,
 		9,0,0,0,0,0,0,0,8
+	};	
+	const raw_sudoku_t only_53_solutions_sudoku_3x3 = {
+		5,0,0,0,0,0,0,0,7,
+		0,0,0,4,6,2,0,0,1,
+		0,0,0,1,0,0,3,4,0,
+		0,0,0,0,4,0,1,0,0,
+		0,0,0,2,0,6,0,0,0,
+		0,0,8,0,3,0,0,0,0,
+		0,5,1,0,0,4,0,0,0,
+		2,0,0,0,8,7,0,0,0,
+		9,0,0,0,0,0,0,0,8
 	};
-	const raw_sudoku_t multi_sol_sudoku_3x3 = {
-	0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,
-	0,0,0,0,4,0,1,0,0,
-	0,0,0,2,0,0,0,0,0,
-	0,0,8,0,3,0,0,0,0,
-	0,5,0,0,0,4,0,0,0,
-	2,0,0,5,8,0,0,0,0,
-	9,0,0,0,0,0,0,0,8
+	const raw_sudoku_t many_11199_solutions_sudoku_3x3 = {
+		5,0,0,0,0,0,0,0,7,
+		0,0,0,4,0,2,0,0,1,
+		0,0,0,1,0,0,0,4,0,
+		0,0,0,0,4,0,1,0,0,
+		0,0,0,0,0,6,0,0,0,
+		0,0,8,0,3,0,0,0,0,
+		0,5,1,0,0,4,0,0,0,
+		2,0,0,5,8,7,0,0,0,
+		9,0,0,0,0,0,0,0,8
+	};	
+	const raw_sudoku_t many_177859_solutions_sudoku_3x3 = {
+		5,0,0,0,0,0,0,0,7,
+		0,0,0,4,0,2,0,0,1,
+		0,0,0,1,0,0,0,4,0,
+		0,0,0,0,4,0,1,0,0,
+		0,0,0,0,0,6,0,0,0,
+		0,0,8,0,3,0,0,0,0,
+		0,5,0,0,0,4,0,0,0,
+		2,0,0,0,8,7,0,0,0,
+		9,0,0,0,0,0,0,0,8
+	};
+	const raw_sudoku_t too_maaaaany_sol_sudoku_3x3 = {
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,4,0,1,0,0,
+		0,0,0,2,0,0,0,0,0,
+		0,0,8,0,3,0,0,0,0,
+		0,5,0,0,0,4,0,0,0,
+		2,0,0,5,8,0,0,0,0,
+		9,0,0,0,0,0,0,0,8
+	};// 8 Solutions
+	const raw_sudoku_t zero_sudoku_3x3 = {
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0
 	};
 
 	const raw_sudoku_t input_sudoku_2x3 = {
@@ -63,7 +107,7 @@ int main()
 		0, 5, 1, 6, 0, 3,
 		0, 3, 0, 5, 4, 0
 	};
-	const auto input_sudoku = multi_sol_sudoku_3x3;
+	const auto input_sudoku = easy_sudoku_3x3;
 	std::cout << input_sudoku << "\n";
 	sudoku_data_t sudoku = init_sudoku_with_raw(input_sudoku);
 	auto_fill(sudoku, true);
@@ -76,8 +120,7 @@ int main()
 	//RandomNumberPicker rnp = RandomNumberPicker<square_height, square_width>();
 	//std::cout << solve_brute_force<3, 3>(sudoku, rnp);
 
-
-	std::cout << solve_brute_force_multiple<3, 3>(sudoku);
+	std::cout << solve_brute_force_all<3, 3>(sudoku) << " Solutions\n";
 
 	raw_sud = get_raw_sudoku(sudoku);
 	std::cout << raw_sud << "\n";

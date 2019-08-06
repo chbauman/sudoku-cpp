@@ -1069,6 +1069,7 @@ SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 
 	// Solve by guessing recursively
 	sudoku_data_t s_data_copy = s_data;
+	sudoku_data_t s_data_res = s_data;
 	const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
 	SolveResultFinal res = UnknownSolution;
 	sudoku_size_t num_sols = 0;
@@ -1084,16 +1085,16 @@ SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 			// Recursion
 			res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
 			if (res == UniqueSolution) {
-				s_data = s_data_copy;
+				s_data_res = s_data_copy;
 				num_sols += 1;
 			}
 			if (num_sols > 1 || res == MultipleSolution) {
 				s_data = s_data_copy;
-				std::cout << "Multiple!!!!!\n";
 				return MultipleSolution;
 			}
 		}
 	}
+	s_data = s_data_res;
 	if (num_sols == 1) {
 		return UniqueSolution;
 	}
@@ -1103,7 +1104,48 @@ SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 	if (num_sols > 1) {
 		return MultipleSolution;
 	}
+	
 	// Should not happen
 	return UnknownSolution;
+}
+
+
+// Count all solutions and check if it is unique
+template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+int solve_brute_force_all(sudoku_data_t & s_data) {
+
+	// Try solving 
+	SolveStepRes init_stat = try_solving(s_data);
+	if (init_stat == Invalid) {
+		return 0;
+	}
+	else if (solved<square_height, square_width>(s_data)) {
+		return 1;
+	}
+
+	// Solve by guessing recursively
+	sudoku_data_t s_data_copy = s_data;
+	sudoku_data_t s_data_res = s_data;
+	const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+	sudoku_size_t num_sols = 0;
+
+	// Loop over all possible guesses
+	for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+		if (s_data[cell_picked + 1 + i] == 2) {
+			// Copy data and set guessed value
+			s_data_copy = s_data;
+			s_data_copy[cell_picked] = i + 1;
+
+			// Recursion
+			const int res = solve_brute_force_all<square_height, square_width>(s_data_copy);
+			num_sols += res;
+			if (res > 0) {
+				s_data_res = s_data_copy;
+			}
+		}
+	}
+	s_data = s_data_res;
+	return num_sols;
 }
 
