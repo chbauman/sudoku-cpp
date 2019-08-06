@@ -24,11 +24,13 @@ constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
 constexpr sudoku_size_t tot_storage = n_stored_per_cell * tot_num_cells;
 constexpr sudoku_size_t n_stored_per_side = n_stored_per_cell * side_len;
 
+// Sudoku data type for solving, 2: possible, 1: not possible, 0: definite number set
 typedef std::array<sudoku_size_t, tot_storage> sudoku_data_t;
+// Sudoku data type as input, 9 x 9 usually
 typedef std::array<sudoku_size_t, tot_num_cells> raw_sudoku_t;
 
-// Random stuff
 
+// Random stuff
 constexpr sudoku_size_t seed = 42;
 
 // Returns a random permutation of size n
@@ -891,7 +893,6 @@ SolveStepRes eliminate_possible_numbers_square(sudoku_data_t & s_data) {
 	}
 }
 
-
 // Updating status uf solving process
 SolveStepRes update(SolveStepRes old_step, SolveStepRes new_step) {
 	if (old_step == Invalid || new_step == Invalid) {
@@ -1014,6 +1015,95 @@ SolveResultFinal solve_brute_force(sudoku_data_t & s_data, RandomNumberPicker<sq
 			return MultipleSolution;
 		}
 	}	
+	return UnknownSolution;
+}
+
+// Find the cell with the least numbers possible
+template<bool printDebugInfo = printDebugInfodefault>
+sudoku_size_t find_least_uncertain_cell(sudoku_data_t & s_data) {
+
+	sudoku_size_t min_poss_nums = side_len;
+	sudoku_size_t min_data_ind = 0;
+
+	// Iterate over all rows 
+	for (sudoku_size_t row_num = 0; row_num < side_len; ++row_num) {
+
+		// Iterate over all cols 
+		for (sudoku_size_t col_num = 0; col_num < side_len; ++col_num) {
+
+			const sudoku_size_t cell_ind = row_num + col_num * side_len;
+			const sudoku_size_t data_ind = cell_ind * n_stored_per_cell;
+
+			if (s_data[data_ind] > 0) continue;
+			// Iterate over all numbers
+			sudoku_size_t num_possible_num = 0;
+			for (sudoku_size_t num = 0; num < side_len; ++num) {
+
+				const sudoku_size_t curr_state = s_data[data_ind + 1 + num];
+				if (curr_state == 2) {
+					num_possible_num++;
+				}
+			}
+			// Found new cell with fewer possibilities
+			if (min_poss_nums > num_possible_num) {
+				min_poss_nums = num_possible_num;
+				min_data_ind = data_ind;
+			}
+		}
+	}
+	return min_data_ind;
+}
+
+// Find a solution and check if it is unique
+template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
+
+	// Try solving 
+	SolveStepRes init_stat = try_solving(s_data);
+	if (init_stat == Invalid) {
+		return InvalidSolution;
+	}
+	else if (solved<square_height, square_width>(s_data)) {
+		return UniqueSolution;
+	}
+
+	// Solve by guessing recursively
+	sudoku_data_t s_data_copy = s_data;
+	const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+	SolveResultFinal res = UnknownSolution;
+	sudoku_size_t num_sols = 0;
+
+	// Loop over all possible guesses
+	for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+		if (s_data[cell_picked + 1 + i] == 2) {
+			// Copy data and set guessed value
+			s_data_copy = s_data;
+			s_data_copy[cell_picked] = i + 1;
+
+			// Recursion
+			res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
+			if (res == UniqueSolution) {
+				s_data = s_data_copy;
+				num_sols += 1;
+			}
+			if (num_sols > 1 || res == MultipleSolution) {
+				s_data = s_data_copy;
+				std::cout << "Multiple!!!!!\n";
+				return MultipleSolution;
+			}
+		}
+	}
+	if (num_sols == 1) {
+		return UniqueSolution;
+	}
+	if (num_sols == 0) {
+		return InvalidSolution;
+	}
+	if (num_sols > 1) {
+		return MultipleSolution;
+	}
+	// Should not happen
 	return UnknownSolution;
 }
 

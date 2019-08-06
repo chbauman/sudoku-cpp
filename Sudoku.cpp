@@ -43,6 +43,17 @@ int main()
 		2,0,0,5,8,7,0,0,0,
 		9,0,0,0,0,0,0,0,8
 	};
+	const raw_sudoku_t multi_sol_sudoku_3x3 = {
+	0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,
+	0,0,0,0,4,0,1,0,0,
+	0,0,0,2,0,0,0,0,0,
+	0,0,8,0,3,0,0,0,0,
+	0,5,0,0,0,4,0,0,0,
+	2,0,0,5,8,0,0,0,0,
+	9,0,0,0,0,0,0,0,8
+	};
 
 	const raw_sudoku_t input_sudoku_2x3 = {
 		0, 1, 4, 0, 5, 0,
@@ -52,18 +63,21 @@ int main()
 		0, 5, 1, 6, 0, 3,
 		0, 3, 0, 5, 4, 0
 	};
-	const auto input_sudoku = input_sudoku_3x3;
+	const auto input_sudoku = multi_sol_sudoku_3x3;
 	std::cout << input_sudoku << "\n";
 	sudoku_data_t sudoku = init_sudoku_with_raw(input_sudoku);
 	auto_fill(sudoku, true);
-	std::cout << sudoku << "\n";
+	//std::cout << sudoku << "\n";
 	std::cout << try_solving(sudoku) << "\n";
 
 	raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
 	std::cout << raw_sud << "\n";
 
-	RandomNumberPicker rnp = RandomNumberPicker<square_height, square_width>();
-	std::cout << solve_brute_force<3, 3>(sudoku, rnp);
+	//RandomNumberPicker rnp = RandomNumberPicker<square_height, square_width>();
+	//std::cout << solve_brute_force<3, 3>(sudoku, rnp);
+
+
+	std::cout << solve_brute_force_multiple<3, 3>(sudoku);
 
 	raw_sud = get_raw_sudoku(sudoku);
 	std::cout << raw_sud << "\n";
