@@ -33,7 +33,7 @@ int main()
 		0,2,9,8,3,0,4,0,0
 	};
 	const raw_sudoku_t hard_sudoku_3x3 = {
-		5,0,0,0,0,0,0,0,7,
+		0,0,0,0,0,0,0,0,0,
 		0,0,0,4,6,2,0,0,1,
 		0,0,0,1,0,0,3,4,0,
 		0,0,0,0,4,0,1,0,0,
@@ -43,6 +43,20 @@ int main()
 		2,0,0,5,8,7,0,0,0,
 		9,0,0,0,0,0,0,0,8
 	};	
+	const raw_sudoku_t hardest_sudoku_3x3 = {
+	8, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 3, 6, 0, 0, 0, 0, 0,
+	0, 7, 0, 0, 9, 0, 2, 0, 0,
+
+	0, 5, 0, 0, 0, 7, 0, 0, 0,
+	0, 0, 0, 0, 4, 5, 7, 0, 0,
+	0, 0, 0, 1, 0, 0, 0, 3, 0,
+
+	0, 0, 1, 0, 0, 0, 0, 6, 8,
+	0, 0, 8, 5, 0, 0, 0, 1, 0,
+	0, 9, 0, 0, 0, 0, 4, 0, 0
+	};	
+
 	const raw_sudoku_t only_53_solutions_sudoku_3x3 = {
 		5,0,0,0,0,0,0,0,7,
 		0,0,0,4,6,2,0,0,1,
@@ -107,7 +121,7 @@ int main()
 		0, 5, 1, 6, 0, 3,
 		0, 3, 0, 5, 4, 0
 	};
-	const auto input_sudoku = easy_sudoku_3x3;
+	const auto input_sudoku = hardest_sudoku_3x3;
 	std::cout << input_sudoku << "\n";
 	sudoku_data_t sudoku = init_sudoku_with_raw(input_sudoku);
 	auto_fill(sudoku, true);
