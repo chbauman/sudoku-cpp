@@ -121,22 +121,20 @@ int main()
 		0, 5, 1, 6, 0, 3,
 		0, 3, 0, 5, 4, 0
 	};
-	const auto input_sudoku = hardest_sudoku_3x3;
+	const auto input_sudoku = easy_sudoku_3x3;
 	std::cout << input_sudoku << "\n";
 	sudoku_data_t sudoku = init_sudoku_with_raw(input_sudoku);
 	auto_fill(sudoku, true);
-	//std::cout << sudoku << "\n";
-	std::cout << try_solving(sudoku) << "\n";
-
 	raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
-	std::cout << raw_sud << "\n";
-
-	//RandomNumberPicker rnp = RandomNumberPicker<square_height, square_width>();
-	//std::cout << solve_brute_force<3, 3>(sudoku, rnp);
 
 	std::cout << solve_brute_force_all<3, 3>(sudoku) << " Solutions\n";
+	sudoku = init_sudoku_with_raw(input_sudoku);
+	auto_fill(sudoku, true);
+	std::cout << solve_count_rec_depth<3, 3>(sudoku) << " Min. Recursion Depth\n";
 
 	raw_sud = get_raw_sudoku(sudoku);
 	std::cout << raw_sud << "\n";
+
+	generate_hard_sudokus();
 
 }

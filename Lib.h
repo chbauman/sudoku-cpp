@@ -967,57 +967,6 @@ bool solved(sudoku_data_t & s_data) {
 
 constexpr bool printRecDebInfo = false;
 
-// Find a solution
-template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
-SolveResultFinal solve_brute_force(sudoku_data_t & s_data, RandomNumberPicker<square_height, square_width> rnp) {
-	
-	// Try solving 
-	SolveStepRes init_stat = try_solving(s_data);
-	if (init_stat == Invalid) {
-		return InvalidSolution;
-	}
-	else if (solved<square_height, square_width>(s_data)) {
-		return UniqueSolution;
-	}
-
-	// Solve by guessing recursively
-	sudoku_data_t s_data_copy = s_data;
-	random_pick_t pick;
-
-	SolveResultFinal res = UnknownSolution;
-	while (res == UnknownSolution) {
-
-		pick = rnp.pickAndSetRandom(s_data_copy);
-		res = solve_brute_force<square_height, square_width>(s_data_copy, rnp);
-		if constexpr (printDebugInfo) {
-			std::cout << res;
-		}
-
-		// Got further in solving
-		if (res == InvalidSolution) {
-			
-			// Eliminate and try solving again
-			eliminate_random_pick<square_height, square_width>(s_data, pick);
-			SolveStepRes stat = try_solving(s_data);
-			s_data_copy = s_data;			
-			if (stat == Invalid) {
-				return InvalidSolution;
-			}
-			else if (solved<square_height, square_width>(s_data)) {
-				return UniqueSolution;
-			}
-			res = UnknownSolution;
-		}
-		// Found solution
-		else if (res == UniqueSolution || res == MultipleSolution) {
-			s_data = s_data_copy;
-			std::cout << "Solution may or may not be unique.\n";
-			return MultipleSolution;
-		}
-	}	
-	return UnknownSolution;
-}
-
 // Find the cell with the least numbers possible
 template<bool printDebugInfo = printDebugInfodefault>
 sudoku_size_t find_least_uncertain_cell(sudoku_data_t & s_data) {
@@ -1053,6 +1002,7 @@ sudoku_size_t find_least_uncertain_cell(sudoku_data_t & s_data) {
 	}
 	return min_data_ind;
 }
+
 
 // Find a solution and check if it is unique
 template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
@@ -1149,3 +1099,177 @@ int solve_brute_force_all(sudoku_data_t & s_data) {
 	return num_sols;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sudoku Generation
+
+typedef int rec_depth_t;
+
+// -3: Error occurred
+// -2: Invalid
+// -1: Multiple
+// 0: Unique, no recursion needed
+// n > 0: Unique, min. rec. depth n
+
+// Find a solution and check if it is unique
+template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+rec_depth_t solve_count_rec_depth(sudoku_data_t & s_data, const rec_depth_t rec_dep = 0) {
+
+	// Try solving 
+	SolveStepRes init_stat = try_solving(s_data);
+	if (init_stat == Invalid) {
+		return -2;
+	}
+	else if (solved<square_height, square_width>(s_data)) {
+		return rec_dep;
+	}
+
+	// Solve by guessing recursively
+	sudoku_data_t s_data_copy = s_data;
+	sudoku_data_t s_data_res = s_data;
+	const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+	rec_depth_t res = -3;
+	sudoku_size_t num_sols = 0;
+
+	rec_depth_t curr_min_rd = -3;
+
+	// Loop over all possible guesses
+	for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+		if (s_data[cell_picked + 1 + i] == 2) {
+			// Copy data and set guessed value
+			s_data_copy = s_data;
+			s_data_copy[cell_picked] = i + 1;
+
+			// Recursion
+			res = solve_count_rec_depth<square_height, square_width>(s_data_copy, rec_dep + 1);
+			if (res >= 0) {
+				s_data_res = s_data_copy;
+				num_sols += 1;
+				if (curr_min_rd == -3 || res < curr_min_rd) {
+					curr_min_rd = res;
+				}
+			}
+			if (num_sols > 1 || res == -1) {
+				s_data = s_data_copy;
+				return -1;
+			}
+		}
+	}
+	s_data = s_data_res;
+	if (num_sols == 1) {
+		return curr_min_rd;
+	}
+	if (num_sols == 0) {
+		return -2;
+	}
+	if (num_sols > 1) {
+		return -1;
+	}
+
+	// Should not happen
+	return -3;
+}
+
+// Counts the number that is currently set in the given sudoku
+sudoku_size_t count_num_known_numbers(const sudoku_data_t & s_data) {
+
+	sudoku_size_t num_ct = 0;
+
+	// Iterate over all rows 
+	for (sudoku_size_t row_num = 0; row_num < side_len; ++row_num) {
+
+		// Check if number already set somewhere
+		for (sudoku_size_t col_num = 0; col_num < side_len; ++col_num) {
+			const sudoku_size_t cell_ind = row_num * side_len + col_num;
+			if (s_data[cell_ind * n_stored_per_cell] > 0) {
+				++num_ct;
+			}
+		}
+	}
+
+	return num_ct;
+}
+
+// Removes the nth number that is currently set in the given sudoku
+void remove_nth(sudoku_data_t & s_data, const sudoku_size_t n) {
+
+	sudoku_size_t num_ct = 0;
+
+	// Iterate over all rows 
+	for (sudoku_size_t row_num = 0; row_num < side_len; ++row_num) {
+
+		// Check if number already set somewhere
+		for (sudoku_size_t col_num = 0; col_num < side_len; ++col_num) {
+			const sudoku_size_t cell_ind = row_num * side_len + col_num;
+			if (s_data[cell_ind * n_stored_per_cell] > 0) {
+				if (num_ct == n) {
+					s_data[cell_ind * n_stored_per_cell] = 0;
+					return;
+				}
+				++num_ct;
+			}
+		}
+	}
+	std::cout << "Fucking index too high :(\n";
+}
+
+void generate_hard_sudokus() {
+
+	for (int k = 0; k < 50000; ++k) {
+
+		// Generate full sudoku
+		const raw_sudoku_t zero_sudoku_3x3 = {
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0
+		};
+		sudoku_data_t sudoku = init_sudoku_with_raw(zero_sudoku_3x3);
+		auto_fill(sudoku, true);
+		raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
+		solve_brute_force_multiple<3, 3>(sudoku);
+
+		// Remove digits randomly
+		const sudoku_size_t n_init = 35;
+		for (sudoku_size_t i = 0; i < n_init; ++i) {
+			sudoku_size_t remove_ind = std::rand() % (tot_num_cells - i);
+			remove_nth(sudoku, remove_ind);
+		}
+		auto_fill(sudoku, true);
+		sudoku_data_t sudoku_copy = sudoku;
+
+		// Remove more, untill multiple solutions possible
+		sudoku_size_t n_curr = n_init;
+		bool unique_sol_exists = true;
+		while (unique_sol_exists) {
+
+			// Remove one digit
+			sudoku_size_t remove_ind = std::rand() % (tot_num_cells - n_curr);
+			remove_nth(sudoku, remove_ind);
+			auto_fill(sudoku, true);
+			sudoku_copy = sudoku;
+			++n_curr;
+
+			// Try solving
+			rec_depth_t rec_dep = solve_count_rec_depth<3, 3>(sudoku_copy);
+			if (rec_dep == 0) {
+				//std::cout << "Found easy Sudoku :)\n";
+			}
+			else if (rec_dep > 0) {
+				std::cout << "Found hard Sudoku :D, level: " << rec_dep << "\n";
+			}
+			else if (rec_dep < 0) {
+				//std::cout << "No more unique sudokus :( " << rec_dep << "\n";
+				unique_sol_exists = false;
+			}
+		}
+
+	}
+	std::cout << "Finished!\n";
+}
