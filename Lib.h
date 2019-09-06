@@ -1103,7 +1103,7 @@ SolveResultFinal solve_brute_force_multiple_random(sudoku_data_t & s_data, RNG &
 			s_data_copy[cell_picked] = curr_i + 1;
 
 			// Recursion
-			res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
+			res = solve_brute_force_multiple_random<square_height, square_width>(s_data_copy, rng);
 			if (res == UniqueSolution) {
 				s_data_res = s_data_copy;
 				num_sols += 1;
@@ -1371,7 +1371,7 @@ raw_sudoku_t string_to_sud(const std::string & str) {
 	return rs;
 }
 
-std::string file_path = "./Data/dat.txt";
+std::string file_path = "./Data/dat33.txt";
 
 // Save the collection in text format
 void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) {
@@ -1396,19 +1396,34 @@ inline bool f_exists(const std::string & f_name) {
 	return f.good();
 }
 
+#include<sstream>
+
 // Load the sudokus saved on disk into collection
 sud_coll_t load_coll(std::string folder_path = file_path) {
 	sud_coll_t sud_map;
 
 	// Return empty map if file does not exist
 	if (!f_exists(folder_path)) {
+		std::cout << "Creating new file\n";
 		return sud_map;
 	}
 
 	// Read file linewise and extract info
-	std::ifstream file(folder_path + "dat.txt");
+	std::ifstream file(folder_path);
+
+	//if (file) {
+	//	std::string str;
+	//	std::ostringstream ss;
+	//	ss << file.rdbuf(); // reading data
+	//	str = ss.str();
+	//	std::cout << str << "\n";
+	//	std::cout << "hoiiii\n";
+	//}
+
 	std::string str;
 	while (std::getline(file, str)) {
+		std::cout << "hoiiii\n";
+		std::cout << str << "\n";
 		const std::string desc = str.substr(0, 12);
 		const sudoku_size_t s_end = 13 + 2 * side_len * side_len;
 		const std::string s_str = str.substr(13, s_end);
@@ -1432,7 +1447,7 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 	sud_coll_t sud_map = load_coll();
 	std::mt19937 gen = std::mt19937(seed);
 
-	for (int k = 0; k < 50000; ++k) {
+	for (int k = 0; k < 200; ++k) {
 
 		// Generate full sudoku
 		const raw_sudoku_t zero_sudoku_3x3 = {
@@ -1451,56 +1466,60 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 		raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
 		solve_brute_force_multiple_random<3, 3>(sudoku, gen);
 		const raw_sudoku_t raw_s_sol = get_raw_sudoku(sudoku);
+		sudoku_data_t sudoku_solution_copy = sudoku;
 
-		// Remove digits randomly
-		const sudoku_size_t n_init = 35;
-		for (sudoku_size_t i = 0; i < n_init; ++i) {
-			sudoku_size_t remove_ind = std::rand() % (tot_num_cells - i);
-			remove_nth(sudoku, remove_ind);
-		}
-		auto_fill(sudoku, true);
-		sudoku_data_t sudoku_copy = sudoku;
+		for (int l = 0; l < 10; ++l) {
+			sudoku = sudoku_solution_copy;
 
-		// Remove more, untill multiple solutions possible
-		sudoku_size_t n_curr = n_init;
-		bool unique_sol_exists = true;
-		while (unique_sol_exists) {
-
-			// Remove one digit
-			sudoku_size_t remove_ind = std::rand() % (tot_num_cells - n_curr);
-			remove_nth(sudoku, remove_ind);
+			// Remove digits randomly
+			const sudoku_size_t n_init = 35;
+			for (sudoku_size_t i = 0; i < n_init; ++i) {
+				sudoku_size_t remove_ind = std::rand() % (tot_num_cells - i);
+				remove_nth(sudoku, remove_ind);
+			}
 			auto_fill(sudoku, true);
-			sudoku_copy = sudoku;
-			++n_curr;
+			sudoku_data_t sudoku_copy = sudoku;
 
-			// Try solving
-			rec_depth_t rec_dep = solve_count_rec_depth<3, 3>(sudoku_copy);
-			if (rec_dep == 0) {
-				//std::cout << "Found easy Sudoku :)\n";
-			}
-			else if (rec_dep > 0) {				
-				const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
-				if (n_sud_w_lvl < max_suds_per_lvl){
-					const raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
-					const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
-					bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
-					if (added) {
-						std::cout << "Added hard Sudoku :D, level: " << rec_dep << "\n";
-						std::cout << "With ID: " << desc << "\n";
-						lvl_count[rec_dep]++;
-					}					
+			// Remove more, untill multiple solutions possible
+			sudoku_size_t n_curr = n_init;
+			bool unique_sol_exists = true;
+			while (unique_sol_exists) {
+
+				// Remove one digit
+				sudoku_size_t remove_ind = std::rand() % (tot_num_cells - n_curr);
+				remove_nth(sudoku, remove_ind);
+				auto_fill(sudoku, true);
+				sudoku_copy = sudoku;
+				++n_curr;
+
+				// Try solving
+				rec_depth_t rec_dep = solve_count_rec_depth<3, 3>(sudoku_copy);
+				if (rec_dep == 0) {
+					//std::cout << "Found easy Sudoku :)\n";
 				}
-			}
-			else if (rec_dep < 0) {
-				//std::cout << "No more unique sudokus :( " << rec_dep << "\n";
-				unique_sol_exists = false;
-			}
+				else if (rec_dep > 0) {
+					const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
+					if (n_sud_w_lvl < max_suds_per_lvl) {
+						const raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
+						const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
+						bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
+						if (added) {
+							std::cout << "Added hard Sudoku :D, level: " << rec_dep << "\n";
+							std::cout << "With ID: " << desc << "\n";
+							lvl_count[rec_dep]++;
+						}
+					}
+				}
+				else if (rec_dep < 0) {
+					//std::cout << "No more unique sudokus :( " << rec_dep << "\n";
+					unique_sol_exists = false;
+				}
+			}			
 		}
-		if ((k + 1) % 1000 == 0) {
-			std::cout << "Saving...\n";
+		if ((k + 1) % 200 == 0) {
+			std::cout << "Iteration: " << k + 1 << ", Saving...\n";
 			save_coll(sud_map);
 		}
-
 	}
 	std::cout << "Finished!\n";
 }
