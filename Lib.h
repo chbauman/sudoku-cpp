@@ -1371,11 +1371,13 @@ raw_sudoku_t string_to_sud(const std::string & str) {
 	return rs;
 }
 
+std::string file_path = "./Data/dat.txt";
+
 // Save the collection in text format
-void save_coll(const sud_coll_t & sud_map, std::string folder_path = "./Data/") {
+void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) {
 
 	std::ofstream myfile;
-	myfile.open(folder_path + "dat.txt");
+	myfile.open(folder_path);
 	for (auto& x : sud_map)
 	{
 		const sud_char_t & desc = x.first;
@@ -1389,17 +1391,21 @@ void save_coll(const sud_coll_t & sud_map, std::string folder_path = "./Data/") 
 }
 
 // Checks if file 'name' exists
-inline bool exists_test(const std::string& name) {
-	std::ifstream f(name.c_str());
+inline bool f_exists(const std::string & f_name) {
+	std::ifstream f(f_name.c_str());
 	return f.good();
 }
 
 // Load the sudokus saved on disk into collection
-sud_coll_t load_coll(std::string folder_path = "./Data/") {
+sud_coll_t load_coll(std::string folder_path = file_path) {
 	sud_coll_t sud_map;
-	if (!exists_test(folder_path + "dat.txt")) {
+
+	// Return empty map if file does not exist
+	if (!f_exists(folder_path)) {
 		return sud_map;
 	}
+
+	// Read file linewise and extract info
 	std::ifstream file(folder_path + "dat.txt");
 	std::string str;
 	while (std::getline(file, str)) {
@@ -1416,7 +1422,6 @@ sud_coll_t load_coll(std::string folder_path = "./Data/") {
 	}
 	return sud_map;
 }
-
 
 // Generate Sudokus and save them to the disk
 void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
