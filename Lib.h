@@ -32,9 +32,8 @@ typedef std::array<sudoku_size_t, tot_storage> sudoku_data_t;
 // Sudoku data type as input, 9 x 9 usually
 typedef std::array<sudoku_size_t, tot_num_cells> raw_sudoku_t;
 
-
 // Random stuff
-constexpr sudoku_size_t seed = 42;
+constexpr sudoku_size_t seed = 43;
 
 // Returns a random permutation of size n
 template<sudoku_size_t n, class rng>
@@ -1006,7 +1005,6 @@ sudoku_size_t find_least_uncertain_cell(sudoku_data_t & s_data) {
 	return min_data_ind;
 }
 
-
 // Find a solution and check if it is unique
 template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
 SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
@@ -1063,7 +1061,6 @@ SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 	// Should not happen
 	return UnknownSolution;
 }
-
 
 // Find a solution and check if it is unique
 template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo, typename RNG>
@@ -1167,7 +1164,6 @@ int solve_brute_force_all(sudoku_data_t & s_data) {
 	s_data = s_data_res;
 	return num_sols;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sudoku Generation
@@ -1456,7 +1452,7 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 		const raw_sudoku_t raw_s_sol = get_raw_sudoku(sudoku);
 		sudoku_data_t sudoku_solution_copy = sudoku;
 
-		for (int l = 0; l < 10; ++l) {
+		for (int l = 0; l < 30; ++l) {
 			sudoku = sudoku_solution_copy;
 
 			// Remove digits randomly
@@ -1492,8 +1488,8 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 						const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
 						bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
 						if (added) {
-							std::cout << "Added hard Sudoku :D, level: " << rec_dep << "\n";
-							std::cout << "With ID: " << desc << "\n";
+							std::cout << "Added hard Sudoku :D, level: " << rec_dep;
+							std::cout << ", With ID: " << desc << "\n";
 							lvl_count[rec_dep]++;
 						}
 					}
