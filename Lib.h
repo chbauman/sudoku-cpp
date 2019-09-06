@@ -1371,7 +1371,7 @@ raw_sudoku_t string_to_sud(const std::string & str) {
 	return rs;
 }
 
-std::string file_path = "./Data/dat33.txt";
+std::string file_path = "./Data/dat.txt";
 
 // Save the collection in text format
 void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) {
@@ -1410,20 +1410,8 @@ sud_coll_t load_coll(std::string folder_path = file_path) {
 
 	// Read file linewise and extract info
 	std::ifstream file(folder_path);
-
-	//if (file) {
-	//	std::string str;
-	//	std::ostringstream ss;
-	//	ss << file.rdbuf(); // reading data
-	//	str = ss.str();
-	//	std::cout << str << "\n";
-	//	std::cout << "hoiiii\n";
-	//}
-
 	std::string str;
 	while (std::getline(file, str)) {
-		std::cout << "hoiiii\n";
-		std::cout << str << "\n";
 		const std::string desc = str.substr(0, 12);
 		const sudoku_size_t s_end = 13 + 2 * side_len * side_len;
 		const std::string s_str = str.substr(13, s_end);
@@ -1447,7 +1435,7 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 	sud_coll_t sud_map = load_coll();
 	std::mt19937 gen = std::mt19937(seed);
 
-	for (int k = 0; k < 200; ++k) {
+	for (int k = 0; k < 10000; ++k) {
 
 		// Generate full sudoku
 		const raw_sudoku_t zero_sudoku_3x3 = {
