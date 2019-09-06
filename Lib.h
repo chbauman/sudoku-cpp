@@ -1171,10 +1171,13 @@ int solve_brute_force_all(sudoku_data_t & s_data) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sudoku Generation
 
+// Type Definition
+typedef int num_sud_t;
 typedef int rec_depth_t;
 typedef unsigned int num_filled_t;
 typedef std::string sud_char_t;
-
+typedef std::pair<raw_sudoku_t, raw_sudoku_t> sud_and_sol_t;
+typedef std::map<sud_char_t, std::vector<sud_and_sol_t> > sud_coll_t;
 
 // -3: Error occurred
 // -2: Invalid
@@ -1183,6 +1186,7 @@ typedef std::string sud_char_t;
 // n > 0: Unique, min. rec. depth n
 
 // Find a solution and check if it is unique
+// Additionally find recursion depth
 template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
 rec_depth_t solve_count_rec_depth(sudoku_data_t & s_data, const rec_depth_t rec_dep = 0) {
 
@@ -1285,8 +1289,74 @@ void remove_nth(sudoku_data_t & s_data, const sudoku_size_t n) {
 	std::cout << "Fucking index too high :(\n";
 }
 
-void generate_hard_sudokus() {
+// Generates a string that describes the sudoku.
+// First number:			Difficulty level {0, ... , 9}
+// First 2 numbers:			# Filled-in digits 
+// Next 9 numbers:			# Decreasing frequency count of numbers from 1 to 9
+// E.g. "133664433322" for a sudoku containing 33 filled-in digits
+// and difficulty level 1.
+sud_char_t generate_sud_char(const raw_sudoku_t & s, const rec_depth_t lvl) {
 
+	// Initialize
+	std::array<sudoku_value_t, side_len> freq;
+	std::fill(freq.begin(), freq.end(), 0);
+	sudoku_size_t tot_n_digits = 0;
+
+	// Loop over sudoku
+	for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
+		const sudoku_value_t el = s[i];
+		if (el > 0) {
+			tot_n_digits++;
+			freq[el - 1]++;
+		}
+	}
+
+	// Sort Frequencies
+	std::sort(freq.begin(), freq.end(), std::greater<sudoku_value_t>());
+
+	// Construct String Output
+	sud_char_t res = std::to_string(tot_n_digits);
+	if (tot_n_digits < 10) {
+		res = "0" + res;
+	}
+	res = std::to_string(lvl) + res;
+	for (auto& e : freq) {
+		res = res + std::to_string(e);
+	}
+	return res;
+}
+
+// Adds the sudoku 's' and its solution 's_sol' in raw form to the collection
+// 'sud_map' if there are less than 'max_sud_per_key' sudokus already there.
+bool add_to_coll(sud_coll_t & sud_map, const sud_char_t & desc, const raw_sudoku_t s, const raw_sudoku_t s_sol, const num_sud_t max_sud_per_key = 100) {
+
+	const sud_and_sol_t s_and_sol = std::make_pair(s, s_sol);
+	const auto pos = sud_map.find(desc);
+	if (pos == sud_map.end()) {
+		std::vector<sud_and_sol_t> val;
+		val.push_back(s_and_sol);
+		sud_map[desc] = val;
+		return true;
+	}
+	else {
+		std::vector<sud_and_sol_t> & val = sud_map[desc];
+		if (val.size() > max_sud_per_key) {
+			return false;
+		}
+		else {
+			sud_map[desc].push_back(s_and_sol);
+			return true;
+		}
+	}
+	return false;
+}
+
+void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
+
+	// Initialize
+	std::array<sudoku_value_t, side_len> lvl_count;
+	std::fill(lvl_count.begin(), lvl_count.end(), 0);
+	sud_coll_t sud_map;
 	std::mt19937 gen = std::mt19937(seed);
 
 	for (int k = 0; k < 50000; ++k) {
@@ -1307,6 +1377,7 @@ void generate_hard_sudokus() {
 		auto_fill(sudoku, true);
 		raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
 		solve_brute_force_multiple_random<3, 3>(sudoku, gen);
+		const raw_sudoku_t raw_s_sol = get_raw_sudoku(sudoku);
 
 		// Remove digits randomly
 		const sudoku_size_t n_init = 35;
@@ -1334,8 +1405,18 @@ void generate_hard_sudokus() {
 			if (rec_dep == 0) {
 				//std::cout << "Found easy Sudoku :)\n";
 			}
-			else if (rec_dep > 0) {
-				std::cout << "Found hard Sudoku :D, level: " << rec_dep << "\n";
+			else if (rec_dep > 0) {				
+				const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
+				if (n_sud_w_lvl < max_suds_per_lvl){
+					const raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
+					const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
+					bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol, 100);
+					if (added) {
+						std::cout << "Added hard Sudoku :D, level: " << rec_dep << "\n";
+						std::cout << "With ID: " << desc << "\n";
+						lvl_count[rec_dep]++;
+					}					
+				}
 			}
 			else if (rec_dep < 0) {
 				//std::cout << "No more unique sudokus :( " << rec_dep << "\n";
