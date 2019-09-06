@@ -7,6 +7,7 @@
 #include <random>
 #include <algorithm>
 #include <map>
+#include <fstream>
 
 typedef int sudoku_size_t;
 typedef int sudoku_value_t;
@@ -1351,12 +1352,79 @@ bool add_to_coll(sud_coll_t & sud_map, const sud_char_t & desc, const raw_sudoku
 	return false;
 }
 
+// Converts a sudoku to a string
+std::string sud_to_string(const raw_sudoku_t & s) {
+	std::string res = "";
+	for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
+		res += std::to_string(s[i]) + " ";
+	}
+	return res;
+}
+
+// Convert String to Sudoku
+raw_sudoku_t string_to_sud(const std::string & str) {	
+	raw_sudoku_t rs;
+	for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
+		const std::string num_str = str.substr(2 * i, 2 * i + 1);
+		rs[i] = std::stoi(num_str);
+	}
+	return rs;
+}
+
+// Save the collection in text format
+void save_coll(const sud_coll_t & sud_map, std::string folder_path = "./Data/") {
+
+	std::ofstream myfile;
+	myfile.open(folder_path + "dat.txt");
+	for (auto& x : sud_map)
+	{
+		const sud_char_t & desc = x.first;
+		const std::vector<sud_and_sol_t> sas = x.second;
+		for (auto& e : sas) {
+			const auto&[s, sol] = e;
+			myfile << desc << " " << sud_to_string(s) << sud_to_string(sol) << "\n";
+		}
+	}
+	myfile.close();
+}
+
+// Checks if file 'name' exists
+inline bool exists_test(const std::string& name) {
+	std::ifstream f(name.c_str());
+	return f.good();
+}
+
+// Load the sudokus saved on disk into collection
+sud_coll_t load_coll(std::string folder_path = "./Data/") {
+	sud_coll_t sud_map;
+	if (!exists_test(folder_path + "dat.txt")) {
+		return sud_map;
+	}
+	std::ifstream file(folder_path + "dat.txt");
+	std::string str;
+	while (std::getline(file, str)) {
+		const std::string desc = str.substr(0, 12);
+		const sudoku_size_t s_end = 13 + 2 * side_len * side_len;
+		const std::string s_str = str.substr(13, s_end);
+		const std::string s_sol_str = str.substr(s_end, s_end + 2 * side_len * side_len);
+		const raw_sudoku_t s = string_to_sud(s_str);
+		const raw_sudoku_t s_sol = string_to_sud(s_sol_str);
+		const bool tr = add_to_coll(sud_map, desc, s, s_sol);
+		if (tr == false) {
+			std::cout << "Fucking Error Ocurred!!!!!!!!!\n\n\n\n";
+		}
+	}
+	return sud_map;
+}
+
+
+// Generate Sudokus and save them to the disk
 void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 
 	// Initialize
 	std::array<sudoku_value_t, side_len> lvl_count;
 	std::fill(lvl_count.begin(), lvl_count.end(), 0);
-	sud_coll_t sud_map;
+	sud_coll_t sud_map = load_coll();
 	std::mt19937 gen = std::mt19937(seed);
 
 	for (int k = 0; k < 50000; ++k) {
@@ -1410,7 +1478,7 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 				if (n_sud_w_lvl < max_suds_per_lvl){
 					const raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
 					const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
-					bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol, 100);
+					bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
 					if (added) {
 						std::cout << "Added hard Sudoku :D, level: " << rec_dep << "\n";
 						std::cout << "With ID: " << desc << "\n";
@@ -1422,6 +1490,10 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 				//std::cout << "No more unique sudokus :( " << rec_dep << "\n";
 				unique_sol_exists = false;
 			}
+		}
+		if ((k + 1) % 1000 == 0) {
+			std::cout << "Saving...\n";
+			save_coll(sud_map);
 		}
 
 	}

@@ -1,4 +1,6 @@
 Debug
+enc_temp_folder
+Data
 *vcxproj*
 pch*
 .vs
