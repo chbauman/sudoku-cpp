@@ -5,6 +5,8 @@
 #include <string>
 #include <iostream>
 #include <random>
+#include <algorithm>
+#include <map>
 
 typedef int sudoku_size_t;
 typedef int sudoku_value_t;
@@ -1027,10 +1029,12 @@ SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 	// Loop over all possible guesses
 	for (sudoku_size_t i = 0; i < side_len; ++i) {
 
-		if (s_data[cell_picked + 1 + i] == 2) {
+		const sudoku_size_t curr_i = i;
+
+		if (s_data[cell_picked + 1 + curr_i] == 2) {
 			// Copy data and set guessed value
 			s_data_copy = s_data;
-			s_data_copy[cell_picked] = i + 1;
+			s_data_copy[cell_picked] = curr_i + 1;
 
 			// Recursion
 			res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
@@ -1059,6 +1063,70 @@ SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 	return UnknownSolution;
 }
 
+
+// Find a solution and check if it is unique
+template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo, typename RNG>
+SolveResultFinal solve_brute_force_multiple_random(sudoku_data_t & s_data, RNG & rng) {
+
+	// Try solving 
+	SolveStepRes init_stat = try_solving(s_data);
+	if (init_stat == Invalid) {
+		return InvalidSolution;
+	}
+	else if (solved<square_height, square_width>(s_data)) {
+		return UniqueSolution;
+	}
+
+	// Solve by guessing recursively
+	sudoku_data_t s_data_copy = s_data;
+	sudoku_data_t s_data_res = s_data;
+	const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+	SolveResultFinal res = UnknownSolution;
+	sudoku_size_t num_sols = 0;
+
+	// Random Order
+	std::array<sudoku_value_t, side_len> perm;
+	for (sudoku_size_t i = 0; i < side_len; ++i) {
+		perm[i] = i;
+	}
+	std::shuffle(perm.begin(), perm.end(), rng);
+
+	// Loop over all possible guesses
+	for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+		const sudoku_size_t curr_i = perm[i];
+
+		if (s_data[cell_picked + 1 + curr_i] == 2) {
+			// Copy data and set guessed value
+			s_data_copy = s_data;
+			s_data_copy[cell_picked] = curr_i + 1;
+
+			// Recursion
+			res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
+			if (res == UniqueSolution) {
+				s_data_res = s_data_copy;
+				num_sols += 1;
+			}
+			if (num_sols > 1 || res == MultipleSolution) {
+				s_data = s_data_copy;
+				return MultipleSolution;
+			}
+		}
+	}
+	s_data = s_data_res;
+	if (num_sols == 1) {
+		return UniqueSolution;
+	}
+	if (num_sols == 0) {
+		return InvalidSolution;
+	}
+	if (num_sols > 1) {
+		return MultipleSolution;
+	}
+
+	// Should not happen
+	return UnknownSolution;
+}
 
 // Count all solutions and check if it is unique
 template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
@@ -1104,6 +1172,9 @@ int solve_brute_force_all(sudoku_data_t & s_data) {
 // Sudoku Generation
 
 typedef int rec_depth_t;
+typedef unsigned int num_filled_t;
+typedef std::string sud_char_t;
+
 
 // -3: Error occurred
 // -2: Invalid
@@ -1216,6 +1287,8 @@ void remove_nth(sudoku_data_t & s_data, const sudoku_size_t n) {
 
 void generate_hard_sudokus() {
 
+	std::mt19937 gen = std::mt19937(seed);
+
 	for (int k = 0; k < 50000; ++k) {
 
 		// Generate full sudoku
@@ -1233,7 +1306,7 @@ void generate_hard_sudokus() {
 		sudoku_data_t sudoku = init_sudoku_with_raw(zero_sudoku_3x3);
 		auto_fill(sudoku, true);
 		raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
-		solve_brute_force_multiple<3, 3>(sudoku);
+		solve_brute_force_multiple_random<3, 3>(sudoku, gen);
 
 		// Remove digits randomly
 		const sudoku_size_t n_init = 35;
