@@ -33,7 +33,7 @@ typedef std::array<sudoku_size_t, tot_storage> sudoku_data_t;
 typedef std::array<sudoku_size_t, tot_num_cells> raw_sudoku_t;
 
 // Random stuff
-constexpr sudoku_size_t seed = 44;
+constexpr sudoku_size_t seed = 47;
 
 // Returns a random permutation of size n
 template<sudoku_size_t n, class rng>
@@ -1367,7 +1367,8 @@ raw_sudoku_t string_to_sud(const std::string & str) {
 	return rs;
 }
 
-std::string file_path = "./Data/dat.txt";
+std::string file_dir = "./Data/";
+std::string file_path = file_dir + "dat.txt";
 
 // Save the collection in text format
 void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) {
@@ -1422,6 +1423,31 @@ sud_coll_t load_coll(std::string folder_path = file_path) {
 	return sud_map;
 }
 
+// Separate Sudokus into separate maps by difficulty
+void separate_by_level_and_save(const sud_coll_t & sud_map) {
+
+	const rec_depth_t max_lvl = 9;
+	std::array<sud_coll_t, max_lvl> lvl_sep_map;
+
+	for (auto& x : sud_map)
+	{
+		// Find Level
+		const sud_char_t & desc = x.first;
+		const std::vector<sud_and_sol_t> sas = x.second;
+		const std::string lvl_string = desc.substr(0, 1);
+		const rec_depth_t lvl = std::stoi(lvl_string);
+
+		// Add to collection
+		lvl_sep_map[lvl][desc] = sas;
+	}
+
+	// Save to separate files
+	for (rec_depth_t i = 0; i < max_lvl; ++i) {
+		std::string f_name = file_dir + "ext_lvl_" + std::to_string(i) + ".txt";
+		save_coll(lvl_sep_map[i], f_name);
+	}
+}
+
 // Generate Sudokus and save them to the disk
 void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 
@@ -1452,11 +1478,11 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 		const raw_sudoku_t raw_s_sol = get_raw_sudoku(sudoku);
 		sudoku_data_t sudoku_solution_copy = sudoku;
 
-		for (int l = 0; l < 30; ++l) {
+		for (int l = 0; l < 100; ++l) {
 			sudoku = sudoku_solution_copy;
 
 			// Remove digits randomly
-			const sudoku_size_t n_init = 35;
+			const sudoku_size_t n_init = 45;
 			for (sudoku_size_t i = 0; i < n_init; ++i) {
 				sudoku_size_t remove_ind = std::rand() % (tot_num_cells - i);
 				remove_nth(sudoku, remove_ind);
@@ -1478,10 +1504,7 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 
 				// Try solving
 				rec_depth_t rec_dep = solve_count_rec_depth<3, 3>(sudoku_copy);
-				if (rec_dep == 0) {
-					//std::cout << "Found easy Sudoku :)\n";
-				}
-				else if (rec_dep > 2) {
+				if (rec_dep > 3) {
 					const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
 					if (n_sud_w_lvl < max_suds_per_lvl) {
 						const raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);

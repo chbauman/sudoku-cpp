@@ -135,6 +135,9 @@ int main()
 	raw_sud = get_raw_sudoku(sudoku);
 	std::cout << raw_sud << "\n";
 
-	generate_hard_sudokus();
+	//generate_hard_sudokus();
+
+	auto s_map = load_coll("./Data/dat_copy.txt");
+	separate_by_level_and_save(s_map);
 
 }
