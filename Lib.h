@@ -33,7 +33,7 @@ typedef std::array<sudoku_size_t, tot_storage> sudoku_data_t;
 typedef std::array<sudoku_size_t, tot_num_cells> raw_sudoku_t;
 
 // Random stuff
-constexpr sudoku_size_t seed = 47;
+constexpr sudoku_size_t seed = 50;
 
 // Returns a random permutation of size n
 template<sudoku_size_t n, class rng>
@@ -1457,7 +1457,7 @@ void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 	sud_coll_t sud_map = load_coll();
 	std::mt19937 gen = std::mt19937(seed);
 
-	for (int k = 0; k < 10000; ++k) {
+	for (int k = 0; k < 50000; ++k) {
 
 		// Generate full sudoku
 		const raw_sudoku_t zero_sudoku_3x3 = {
