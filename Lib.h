@@ -224,6 +224,10 @@ bool check_all_1(const std::array<value_t, n> & arr) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Initialize Sudoku and Convert
+
+/// Initialize a sudoku.
+///
+/// Fills it with zeros.
 template<bool printDebugInfo = printDebugInfodefault>
 sudoku_data_t init_sudoku() {
 	sudoku_data_t s_data;
@@ -232,6 +236,7 @@ sudoku_data_t init_sudoku() {
 	return s_data;
 }
 
+/// Initializes sudoku with a raw sudoku.
 template<bool printDebugInfo = printDebugInfodefault>
 sudoku_data_t init_sudoku_with_raw(const raw_sudoku_t & raw_s) {
 	sudoku_data_t s_data = init_sudoku();
@@ -245,6 +250,7 @@ sudoku_data_t init_sudoku_with_raw(const raw_sudoku_t & raw_s) {
 	return s_data;
 }
 
+/// Convert sudoku to raw.
 template<bool printDebugInfo = printDebugInfodefault>
 raw_sudoku_t get_raw_sudoku(const sudoku_data_t & s_data) {
 	raw_sudoku_t raw_s;
@@ -255,6 +261,7 @@ raw_sudoku_t get_raw_sudoku(const sudoku_data_t & s_data) {
 	return raw_s;
 }
 
+/// Auto-fill sudoku.
 template<bool printDebugInfo = printDebugInfodefault>
 void auto_fill(sudoku_data_t & s_data, const bool init = false) {
 	for (sudoku_size_t ind = 0; ind < tot_num_cells; ++ind) {
@@ -304,30 +311,39 @@ void auto_fill(sudoku_data_t & s_data, const bool init = false) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Solving Sudoku
 
-// Status for intermediate solver
+/// Status for intermediate solver.
 enum SolveStepRes {
-	Invalid,
-	ValidnNoChange,
-	ValidNewFound
+	Invalid, ///< Sudoku does not have a solution.
+	ValidnNoChange, ///< Sudoku is valid and was not changed.
+	ValidNewFound, ///< Sudoku is valid and a change was made towards solving it.
 };
 
-const std::string sol_step_msgs[] = { "Sudoku is invalid.", "Sudoku is valid, no new number found.", "Sudoku is valid, found new number." };
+/// String array mapping each \ref SolveStepRes to an informative string.
+const std::string sol_step_msgs[] = { 
+	"Sudoku is invalid.", 
+	"Sudoku is valid, no new number found.", 
+	"Sudoku is valid, found new number." 
+};
 
+/// Printing \ref SolveStepRes to std::cout.
 inline std::ostream& operator<<(std::ostream & os, const SolveStepRes & sol_step) {
 	os << sol_step_msgs[sol_step] << "\n";
 	return os;
 }
 
-// Status for final solver
+/// Status for final solver.
 enum SolveResultFinal {
-	InvalidSolution,
-	UniqueSolution,
-	MultipleSolution,
-	UnknownSolution
+	InvalidSolution, ///< Sudoku does not have a solution.
+	UniqueSolution, ///< Sudoku has a unique solution.
+	MultipleSolution, ///< Sudoku contains multiple solutions.
+	UnknownSolution, ///< Unknown number of solutions.
 };
 
-const std::string sol_res_fin_msgs[] = { "Sudoku is invalid, cannot be solved.", "Sudoku has a unique solution.", "Sudoku has multiple solutions.", "Solutions has not yet been found." };
+/// String array mapping each \ref SolveResultFinal to an informative string.
+const std::string sol_res_fin_msgs[] = { "Sudoku is invalid, cannot be solved.", "Sudoku has a unique solution.", 
+	"Sudoku has multiple solutions.", "Solutions has not yet been found." };
 
+/// Printing \ref SolveResultFinal to std::cout.
 inline std::ostream& operator<<(std::ostream & os, const SolveResultFinal & sol_step) {
 	os << sol_res_fin_msgs[sol_step] << "\n";
 	return os;
