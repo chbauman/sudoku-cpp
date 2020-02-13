@@ -23,14 +23,14 @@ constexpr sudoku_size_t square_width = 3;
 
 constexpr bool printDebugInfodefault = false;
 
+// Derived constants
 constexpr sudoku_size_t side_len = square_height * square_width;
 constexpr sudoku_size_t tot_num_cells = side_len * side_len;
-
-static_assert(square_width > 0 && square_height > 0 && "Do you really want an empty fucking Sudoku?");
-
 constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
 constexpr sudoku_size_t tot_storage = n_stored_per_cell * tot_num_cells;
 constexpr sudoku_size_t n_stored_per_side = n_stored_per_cell * side_len;
+
+static_assert(square_width > 0 && square_height > 0 && "Do you really want an empty fucking Sudoku?");
 
 /// Sudoku data type for solving.
 ///
@@ -349,7 +349,7 @@ inline std::ostream& operator<<(std::ostream & os, const SolveResultFinal & sol_
 	return os;
 }
 
-// Look for numbers that can only be placed in one cell in a given row/col
+/// Looks for numbers that can only be placed in one cell in a given row/col.
 template<bool printDebugInfo = printDebugInfodefault>
 SolveStepRes find_unique_in_rcs(sudoku_data_t & s_data) {
 	
@@ -459,7 +459,7 @@ SolveStepRes find_unique_in_rcs(sudoku_data_t & s_data) {
 	}
 }
 
-// Look for numbers that can only be placed in one cell in a given square
+/// Looks for numbers that can only be placed in one cell in a given square.
 template<bool printDebugInfo = printDebugInfodefault>
 SolveStepRes find_unique_in_square(sudoku_data_t & s_data) {
 
@@ -547,7 +547,7 @@ SolveStepRes find_unique_in_square(sudoku_data_t & s_data) {
 	}
 }
 
-// Look for cells where only one number can be
+/// Looks for cells where only one number can be.
 template<bool printDebugInfo = printDebugInfodefault>
 SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
 
@@ -599,7 +599,7 @@ SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
 	}
 }
 
-// Look for possible numbers that can be eliminated in all rows
+/// Looks for possible numbers that can be eliminated in all rows.
 template<bool printDebugInfo = printDebugInfodefault>
 SolveStepRes eliminate_possible_numbers_row(sudoku_data_t & s_data) {
 
@@ -693,7 +693,7 @@ SolveStepRes eliminate_possible_numbers_row(sudoku_data_t & s_data) {
 	}
 }
 
-// Look for possible numbers that can be eliminated in all cols
+/// Looks for possible numbers that can be eliminated in all cols.
 template<bool printDebugInfo = printDebugInfodefault>
 SolveStepRes eliminate_possible_numbers_col(sudoku_data_t & s_data) {
 
@@ -787,7 +787,7 @@ SolveStepRes eliminate_possible_numbers_col(sudoku_data_t & s_data) {
 	}
 }
 
-// Look for possible numbers that can be eliminated in all squares
+/// Looks for possible numbers that can be eliminated in all squares.
 template<bool printDebugInfo = printDebugInfodefault>
 SolveStepRes eliminate_possible_numbers_square(sudoku_data_t & s_data) {
 
@@ -1408,7 +1408,7 @@ raw_sudoku_t string_to_sud(const std::string & str) {
 std::string file_dir = "./Data/";
 std::string file_path = file_dir + "dat.txt";
 
-// Save the collection in text format
+/// Saves the collection in text format.
 void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) {
 
 	std::ofstream myfile;
@@ -1425,7 +1425,7 @@ void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) 
 	myfile.close();
 }
 
-// Checks if file 'name' exists
+/// Checks if file 'name' exists.
 inline bool f_exists(const std::string & f_name) {
 	std::ifstream f(f_name.c_str());
 	return f.good();
@@ -1486,7 +1486,7 @@ void separate_by_level_and_save(const sud_coll_t & sud_map) {
 	}
 }
 
-// Generate Sudokus and save them to the disk
+/// Generate hard Sudokus and save them to the disk.
 void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
 
 	// Initialize
