@@ -8,6 +8,10 @@
 #include <iostream>
 #include <random>
 
+
+/// The main function.
+///
+/// It executes everything that is needed.
 int main()
 {
 	const raw_sudoku_t input_sudoku_3x3 = {

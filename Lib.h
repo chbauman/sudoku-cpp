@@ -9,11 +9,16 @@
 #include <map>
 #include <fstream>
 
+/// Size type of sudoku.
 typedef int sudoku_size_t;
+
+/// Type of sudoku entries.
 typedef int sudoku_value_t;
 
-// Choose suitable
+/// The heigth of each square in the sudoku.
 constexpr sudoku_size_t square_height = 3;
+
+/// The width of each square in the sudoku.
 constexpr sudoku_size_t square_width = 3;
 
 constexpr bool printDebugInfodefault = false;
@@ -27,15 +32,20 @@ constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
 constexpr sudoku_size_t tot_storage = n_stored_per_cell * tot_num_cells;
 constexpr sudoku_size_t n_stored_per_side = n_stored_per_cell * side_len;
 
-// Sudoku data type for solving, 2: possible, 1: not possible, 0: definite number set
+/// Sudoku data type for solving.
+///
+/// Meaning of entries: 2: possible, 1: not possible, 0: definite number set.
 typedef std::array<sudoku_size_t, tot_storage> sudoku_data_t;
-// Sudoku data type as input, 9 x 9 usually
+
+/// Sudoku input data type.
+///
+/// Usually of size 9 x 9.
 typedef std::array<sudoku_size_t, tot_num_cells> raw_sudoku_t;
 
-// Random stuff
+/// Random seed.
 constexpr sudoku_size_t seed = 50;
 
-// Returns a random permutation of size n
+/// Returns a random permutation of size n.
 template<sudoku_size_t n, class rng>
 std::array<sudoku_size_t, n> random_permutation(rng & g) {
 	std::array<sudoku_size_t, n> cell_order;
@@ -49,16 +59,22 @@ std::array<sudoku_size_t, n> random_permutation(rng & g) {
 //////////////////////////////////////////////////////////////////////////////////////////
 // Random Number picking
 
-// A pick is defined with the cell number and the number that was picked
+/// A pick is defined with the cell number and the number that was picked
 typedef std::pair<sudoku_size_t, sudoku_size_t> random_pick_t;
 
-// For printing to std::cout 
+/// Prints random picks to std::cout 
+///
+/// Overloads the << operator for direct use with \ref random_pick_t.
+/// @param p The random pick.
 inline std::ostream& operator<<(std::ostream & os, const random_pick_t & p) {
 	os << "Picked cell " << p.first << " and number " << p.second + 1 << "\n";
 	return os;
 }
 
-// The class for picking 
+/// The class for picking random cells.
+///
+/// Picks a random cell where the number is not set currently
+/// and sets it with a random number that fits.
 template<sudoku_size_t square_height, sudoku_size_t square_width>
 class RandomNumberPicker {
 	
@@ -104,7 +120,7 @@ private:
 	const std::array<sudoku_size_t, side_len> number_order;
 };
 
-// Eliminate the random pick as possibility
+/// Eliminates the random pick as possibility.
 template<sudoku_size_t square_height, sudoku_size_t square_width>
 void eliminate_random_pick(sudoku_data_t & s_data, const random_pick_t & rp) {
 	constexpr sudoku_size_t side_len = square_height * square_width;
@@ -126,6 +142,7 @@ inline void printLine(std::ostream & os, const sudoku_size_t square_height, cons
 	os << "\n";
 }
 
+/// Prints a raw sudoku to \ref std::cout.
 inline std::ostream& operator<<(std::ostream & os, const raw_sudoku_t & sud){
 	printLine(os, square_height, square_width);
 	for (sudoku_size_t square_row = 0; square_row < square_width; ++square_row) {
@@ -147,6 +164,7 @@ inline std::ostream& operator<<(std::ostream & os, const raw_sudoku_t & sud){
 	return os;
 }
 
+/// Prints a sudoku to \ref std::cout.
 inline std::ostream& operator<<(std::ostream & os, const sudoku_data_t & sud){
 	for (sudoku_size_t i = 0; i < tot_num_cells; ++i) {
 		if (i % side_len == 0) os << "\n";
@@ -1348,7 +1366,9 @@ bool add_to_coll(sud_coll_t & sud_map, const sud_char_t & desc, const raw_sudoku
 	return false;
 }
 
-// Converts a sudoku to a string
+/// Converts a raw sudoku to a string.
+///
+/// Does the opposite of \ref string_to_sud().
 std::string sud_to_string(const raw_sudoku_t & s) {
 	std::string res = "";
 	for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
@@ -1357,7 +1377,9 @@ std::string sud_to_string(const raw_sudoku_t & s) {
 	return res;
 }
 
-// Convert String to Sudoku
+/// Convert String to Sudoku.
+///
+/// Does the opposite of \ref sud_to_string().
 raw_sudoku_t string_to_sud(const std::string & str) {	
 	raw_sudoku_t rs;
 	for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
