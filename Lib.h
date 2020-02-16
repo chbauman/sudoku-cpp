@@ -39,7 +39,8 @@ typedef std::array<sudoku_size_t, tot_storage> sudoku_data_t;
 
 /// Sudoku input data type.
 ///
-/// Usually of size 9 x 9.
+/// Usually of size 9 x 9, 0 denotes empty cell, other numbers denote
+/// the set numbers.
 typedef std::array<sudoku_size_t, tot_num_cells> raw_sudoku_t;
 
 /// Random seed.
@@ -193,7 +194,7 @@ void iterateDouble() {
 	}
 }
 
-// Initialize an array with 0
+/// Initialize an array with 0.
 template<sudoku_size_t n>
 void setZero(std::array<sudoku_size_t, n> & arr){
 	for (sudoku_size_t i = 0; i < n; ++i) {
@@ -201,7 +202,7 @@ void setZero(std::array<sudoku_size_t, n> & arr){
 	}
 };
 
-// Sum all elements of an array
+/// Sum all elements of an array.
 template<class value_t, sudoku_size_t n>
 value_t sum(const std::array<value_t, n> & arr) {
 	value_t sum_curr = (value_t)0;
@@ -211,7 +212,7 @@ value_t sum(const std::array<value_t, n> & arr) {
 	return sum_curr;
 };
 
-// Check if all elements of array are 1
+/// Check if all elements of array are 1.
 template<class value_t, sudoku_size_t n>
 bool check_all_1(const std::array<value_t, n> & arr) {
 	for (sudoku_size_t i = 0; i < n; ++i) {
@@ -1210,6 +1211,8 @@ typedef std::string sud_char_t;
 typedef std::pair<raw_sudoku_t, raw_sudoku_t> sud_and_sol_t;
 typedef std::map<sud_char_t, std::vector<sud_and_sol_t> > sud_coll_t;
 
+typedef std::pair<SolveResultFinal, rec_depth_t> FullSol_t;
+
 // -3: Error occurred
 // -2: Invalid
 // -1: Multiple
@@ -1248,7 +1251,8 @@ rec_depth_t solve_count_rec_depth(sudoku_data_t & s_data, const rec_depth_t rec_
 			s_data_copy[cell_picked] = i + 1;
 
 			// Recursion
-			res = solve_count_rec_depth<square_height, square_width>(s_data_copy, rec_dep + 1);
+			res = solve_count_rec_depth<square_height, square_width>(
+				s_data_copy, rec_dep + 1);
 			if (res >= 0) {
 				s_data_res = s_data_copy;
 				num_sols += 1;

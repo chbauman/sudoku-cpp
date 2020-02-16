@@ -8,12 +8,12 @@
 #include <iostream>
 #include <random>
 
-
 /// The main function.
 ///
 /// It executes everything that is needed.
-int main()
-{
+int main(int argc, char* argv[]){
+
+
 	const raw_sudoku_t input_sudoku_3x3 = {
 		6, 0, 0, 0, 0, 8, 9, 4, 0,
 		9, 0, 0, 0, 0, 6, 1, 0, 0,
@@ -82,7 +82,7 @@ int main()
 		0,5,1,0,0,4,0,0,0,
 		2,0,0,5,8,7,0,0,0,
 		9,0,0,0,0,0,0,0,8
-	};	
+	};
 	const raw_sudoku_t many_177859_solutions_sudoku_3x3 = {
 		5,0,0,0,0,0,0,0,7,
 		0,0,0,4,0,2,0,0,1,

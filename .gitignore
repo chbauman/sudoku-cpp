@@ -6,3 +6,8 @@ pch*
 .vs
 *.sln
 docs
+
+Test
+!Test/test.cpp
+
+packages
