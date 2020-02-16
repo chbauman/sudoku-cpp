@@ -14,7 +14,7 @@ class SudokuHandler {
 	
 	// The sudoku data
 	sudoku_data_t sud_data;
-	raw_sudoku_t raw_sud;
+	raw_sudoku_t raw_sud;	
 
 	/// Initializes sudoku with a raw sudoku.
 	template<bool printDebugInfo = printDebugInfodefault>
@@ -736,12 +736,12 @@ class SudokuHandler {
 	}
 
 	/// Find a solution and check if it is unique
-	template<bool printDebugInfo = printRecDebInfo, typename RNG>
+	template<bool random_order = False, bool printDebugInfo = printRecDebInfo,
+		typename RNG>
 	FullSol_t solve_brute_force_multiple_random(
 		sudoku_data_t & s_data,
 		RNG & rng, 
-		const rec_depth_t rec_dep = 0, 
-		const bool random_order = true
+		const rec_depth_t rec_dep = 0
 	) {
 
 		// Try solving 
@@ -765,17 +765,17 @@ class SudokuHandler {
 
 		// Random Order
 		std::array<sudoku_value_t, side_len> perm;
-		for (sudoku_size_t i = 0; i < side_len; ++i) {
-			perm[i] = i;
-		}
-		if (random_order) {
-			//std::shuffle(perm.begin(), perm.end(), rng);
+		if constexpr (random_order) {
+			for (sudoku_size_t i = 0; i < side_len; ++i) {
+				perm[i] = i;
+			}
+			std::shuffle(perm.begin(), perm.end(), rng);
 		}
 
 		// Loop over all possible guesses
 		for (sudoku_size_t i = 0; i < side_len; ++i) {
 
-			const sudoku_size_t curr_i = perm[i];
+			const sudoku_size_t curr_i = random_order ? perm[i]: i;
 
 			if (s_data[cell_picked + 1 + curr_i] == 2) {
 				// Copy data and set guessed value
@@ -783,8 +783,8 @@ class SudokuHandler {
 				s_data_copy[cell_picked] = curr_i + 1;
 
 				// Recursion
-				auto[res, res_rd] = solve_brute_force_multiple_random<printDebugInfo>(
-					s_data_copy, rng, rec_dep + 1, random_order);
+				auto[res, res_rd] = solve_brute_force_multiple_random<random_order, printDebugInfo>(
+					s_data_copy, rng, rec_dep + 1);
 				if (res == UniqueSolution) {
 					s_data_res = s_data_copy;
 					num_sols += 1;
@@ -830,9 +830,21 @@ public:
 	}
 
 	/// Solves the loaded sudoku.
-	FullSol_t solve() {
-		int rng = 5;
-		return solve_brute_force_multiple_random(sud_data, rng);
+	FullSol_t solve(bool random_order = false) {
+		
+		FullSol_t sol;
+
+		if (random_order) {
+			// Initialize rng and solve.
+			std::mt19937 gen = std::mt19937(seed);
+			sol = solve_brute_force_multiple_random<true>(sud_data, gen);
+		}
+		else {
+			int rng = 0;
+			sol = solve_brute_force_multiple_random<false>(sud_data, rng);
+		}
+
+		return sol;
 	}
 
 
