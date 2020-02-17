@@ -658,7 +658,7 @@ class SudokuHandler {
 	}
 
 	/// Updating status uf solving process
-	SolveStepRes update(SolveStepRes old_step, SolveStepRes new_step) {
+	SolveStepRes update(SolveStepRes old_step, SolveStepRes new_step) const {
 		if (old_step == Invalid || new_step == Invalid) {
 			return Invalid;
 		}
@@ -814,7 +814,7 @@ class SudokuHandler {
 	}
 
 public:
-	/// Default Constructor
+	/// Default Constructor.
 	SudokuHandler() {};
 
 	/// Construct from raw sudoku.
@@ -840,7 +840,7 @@ public:
 			sol = solve_brute_force_multiple_random<true>(sud_data, gen);
 		}
 		else {
-			int rng = 0;
+			int rng = 0; // Dummy RNG.
 			sol = solve_brute_force_multiple_random<false>(sud_data, rng);
 		}
 
