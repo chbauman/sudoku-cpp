@@ -195,27 +195,27 @@ void iterateDouble() {
 }
 
 /// Initialize an array with 0.
-template<sudoku_size_t n>
+template<std::size_t n>
 void setZero(std::array<sudoku_size_t, n> & arr){
-	for (sudoku_size_t i = 0; i < n; ++i) {
+	for (std::size_t i = 0; i < n; ++i) {
 		arr[i] = 0;
 	}
 };
 
 /// Sum all elements of an array.
-template<class value_t, sudoku_size_t n>
+template<class value_t, std::size_t n>
 value_t sum(const std::array<value_t, n> & arr) {
 	value_t sum_curr = (value_t)0;
-	for (sudoku_size_t i = 0; i < n; ++i) {
+	for (std::size_t i = 0; i < n; ++i) {
 		sum_curr += arr[i];
 	}
 	return sum_curr;
 };
 
 /// Check if all elements of array are 1.
-template<class value_t, sudoku_size_t n>
+template<class value_t, std::size_t n>
 bool check_all_1(const std::array<value_t, n> & arr) {
-	for (sudoku_size_t i = 0; i < n; ++i) {
+	for (std::size_t i = 0; i < n; ++i) {
 		if (arr[i] != (value_t)1) {
 			return false;
 		}
