@@ -1,87 +1,60 @@
 #pragma once
 
 #include "SudokuCore.h"
-#include "SudokuSolver.h"
-#include "SudokuGenerator.h"
 
-template<sudoku_size_t square_height = 3, sudoku_size_t square_width = 3>
-class SudokuHandler {
+/// Recursion depth returned by \ref SudokuSolver::solve_count_rec_depth.
+///
+/// -3: Error occurred, -2: Invalid, -1: Multiple, 0: Unique (no recursion
+/// needed), n > 0: Unique, min. rec. depth n.
+typedef int rec_depth_t;
 
-	// Constants
-	static constexpr sudoku_size_t side_len = square_height * square_width;
-	static constexpr sudoku_size_t tot_num_cells = side_len * side_len;
-	static constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
-	static constexpr sudoku_size_t tot_storage = n_stored_per_cell * tot_num_cells;
-	static constexpr sudoku_size_t n_stored_per_side = n_stored_per_cell * side_len;
-	
-	// The sudoku data
-	sudoku_data_t sud_data;
-	raw_sudoku_t raw_sud;	
+/// Status for intermediate solver.
+enum SolveStepRes {
+	Invalid, ///< Sudoku does not have a solution.
+	ValidnNoChange, ///< Sudoku is valid and was not changed.
+	ValidNewFound, ///< Sudoku is valid and a change was made towards solving it.
+};
 
-	/// Initializes sudoku with a raw sudoku.
-	template<bool printDebugInfo = printDebugInfodefault>
-	sudoku_data_t init_sudoku_with_raw(const raw_sudoku_t & raw_s) {
-		sudoku_data_t s_data = init_sudoku();
-		for (sudoku_size_t ind = 0; ind < tot_num_cells; ++ind) {
-			const sudoku_size_t temp = raw_s[ind];
-			if (temp) {
-				s_data[ind * n_stored_per_cell] = temp;
-			}
-		}
-		if constexpr (printDebugInfo) std::cout << "Constructed Sudoku Data with raw Sudoku.\n";
-		return s_data;
-	}
+/// String array mapping each \ref SolveStepRes to an informative string.
+const std::string sol_step_msgs[] = {
+	"Sudoku is invalid.",
+	"Sudoku is valid, no new number found.",
+	"Sudoku is valid, found new number."
+};
 
-	/// Auto-fill sudoku.
-	template<bool printDebugInfo = printDebugInfodefault>
-	void auto_fill(sudoku_data_t & s_data, const bool init = false) {
-		for (sudoku_size_t ind = 0; ind < tot_num_cells; ++ind) {
-			const sudoku_size_t curr_ind = ind * n_stored_per_cell;
-			const sudoku_size_t cell_col_ind = ind % side_len;
-			const sudoku_size_t cell_row_ind = ind / side_len;
+/// Printing \ref SolveStepRes to std::cout.
+inline std::ostream& operator<<(std::ostream & os, const SolveStepRes & sol_step) {
+	os << sol_step_msgs[sol_step] << "\n";
+	return os;
+}
 
-			const sudoku_size_t col_ind = curr_ind % n_stored_per_side;
-			const sudoku_size_t row_ind = curr_ind / n_stored_per_side;
+/// Status for final solver.
+enum SolveResultFinal {
+	InvalidSolution, ///< Sudoku does not have a solution.
+	UniqueSolution, ///< Sudoku has a unique solution.
+	MultipleSolution, ///< Sudoku contains multiple solutions.
+	UnknownSolution, ///< Unknown number of solutions.
+};
 
-			const sudoku_size_t temp = s_data[curr_ind];
-			if (temp == 0) {// Number not set
-				if (init) {
-					// Initialize as all possible
-					for (sudoku_size_t i = 0; i < side_len; ++i) {
-						s_data[curr_ind + i + 1] = 2;
-					}
-				}
-				// Iterate over row and column
-				for (sudoku_size_t i = 0; i < side_len; ++i) {
-					const sudoku_size_t temp2 = s_data[cell_row_ind * n_stored_per_side + i * n_stored_per_cell];
-					if (temp2) {//Number in same row set
-						s_data[curr_ind + temp2] = 1;
-					}
-					const sudoku_size_t temp3 = s_data[i * n_stored_per_side + cell_col_ind * n_stored_per_cell];
-					if (temp3) {//Number in same col set
-						s_data[curr_ind + temp3] = 1;
-					}
-				}
-				// Iterate over squares
-				const sudoku_size_t square_begin = side_len * (cell_row_ind - (cell_row_ind % square_height)) + (cell_col_ind - (cell_col_ind % square_width));
-				const sudoku_size_t square_row_ind = cell_row_ind / square_height;
-				const sudoku_size_t square_col_ind = cell_col_ind / square_width;
-				for (sudoku_size_t k = 0; k < square_height; ++k) {
-					for (sudoku_size_t i = 0; i < square_width; ++i) {
-						const sudoku_size_t temp4 = s_data[(square_begin + i + k * side_len) * n_stored_per_cell];
-						if (temp4) {//Number in same col set
-							s_data[curr_ind + temp4] = 1;
-						}
-					}
-				}
-			}
-		}
-		if constexpr (printDebugInfo) std::cout << "Sudoku initialized with autofill.\n";
-	}
+/// String array mapping each \ref SolveResultFinal to an informative string.
+const std::string sol_res_fin_msgs[] = { "Sudoku is invalid, cannot be solved.", "Sudoku has a unique solution.",
+	"Sudoku has multiple solutions.", "Solutions has not yet been found." };
+
+/// Printing \ref SolveResultFinal to std::cout.
+inline std::ostream& operator<<(std::ostream & os, const SolveResultFinal & sol_step) {
+	os << sol_res_fin_msgs[sol_step] << "\n";
+	return os;
+}
+
+constexpr bool printRecDebInfo = false;
+
+/// Deterministic and brute-force solving algorithms for a sudoku.
+class SudokuSolver {
+public:
 
 	/// Looks for numbers that can only be placed in one cell in a given row/col.
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes find_unique_in_rcs(sudoku_data_t & s_data) {
+	static SolveStepRes find_unique_in_rcs(sudoku_data_t & s_data) {
 
 		bool found_number = false;
 
@@ -157,7 +130,7 @@ class SudokuHandler {
 					if constexpr (printDebugInfo) {
 						std::cout << "Found a number "
 							<< number + 1 << " in row " << row_num + 1 << " at index "
-							<< cell_poss_num_row << ".\n";
+							<< cell_poss_num_row  << ".\n";
 					}
 				}
 
@@ -171,9 +144,9 @@ class SudokuHandler {
 					}
 				}
 				if ((num_poss_places_row == 0 && num_times_set_row == 0) || (num_poss_places_col == 0 && num_times_set_col == 0)) {
-					if constexpr (printDebugInfo) {
+					if constexpr(printDebugInfo) {
 						std::cout << "No possibility to put "
-							<< number + 1 << " in " << (num_poss_places_row == 0 ? "row " : "col ") << row_num + 1 << ".\n";
+							<< number + 1 << " in " << (num_poss_places_row == 0?"row ":"col ") << row_num + 1 << ".\n";
 					}
 					return Invalid;
 				}
@@ -191,11 +164,11 @@ class SudokuHandler {
 
 	/// Looks for numbers that can only be placed in one cell in a given square.
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes find_unique_in_square(sudoku_data_t & s_data) {
+	static SolveStepRes find_unique_in_square(sudoku_data_t & s_data) {
 
 		bool found_number = false;
 
-		// Iterate over all rows 
+		// Iterate over all rows
 		for (sudoku_size_t square_id = 0; square_id < side_len; ++square_id) {
 
 			const sudoku_size_t square_col_ind = square_id % square_height;
@@ -206,7 +179,7 @@ class SudokuHandler {
 
 				sudoku_size_t num_times_set = 0;
 
-				// Iterate over all rows 
+				// Iterate over all rows
 				for (sudoku_size_t cell_id = 0; cell_id < side_len; ++cell_id) {
 
 					const sudoku_size_t square_col_ind_inner = cell_id % square_height;
@@ -221,8 +194,8 @@ class SudokuHandler {
 				if (num_times_set > 1) {
 					if constexpr (printDebugInfo) {
 						std::cout << "Number "
-							<< number + 1 << " in square " << square_id
-							<< " set " << num_times_set << " times.\n";
+								<< number + 1 << " in square " << square_id
+								<< " set " << num_times_set << " times.\n";
 					}
 					return Invalid;
 				}
@@ -279,14 +252,14 @@ class SudokuHandler {
 
 	/// Looks for cells where only one number can be.
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
+	static SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
 
 		bool found_number = false;
 
-		// Iterate over all rows 
+		// Iterate over all rows
 		for (sudoku_size_t row_num = 0; row_num < side_len; ++row_num) {
 
-			// Iterate over all cols 
+			// Iterate over all cols
 			for (sudoku_size_t col_num = 0; col_num < side_len; ++col_num) {
 
 				const sudoku_size_t cell_ind = row_num + col_num * side_len;
@@ -331,17 +304,17 @@ class SudokuHandler {
 
 	/// Looks for possible numbers that can be eliminated in all rows.
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes eliminate_possible_numbers_row(sudoku_data_t & s_data) {
+	static SolveStepRes eliminate_possible_numbers_row(sudoku_data_t & s_data) {
 
 		bool found_number = false;
 		std::array<sudoku_size_t, square_height> occurrance_arr;
 
-		// Iterate over all rows 
+		// Iterate over all rows
 		for (sudoku_size_t row_num = 0; row_num < side_len; ++row_num) {
 
 			// Check if a number in this row can only occur in a particular square
 
-			// Iterate over all numbers 
+			// Iterate over all numbers
 			for (sudoku_size_t num = 0; num < side_len; ++num) {
 
 				// Check if number already set somewhere
@@ -425,17 +398,17 @@ class SudokuHandler {
 
 	/// Looks for possible numbers that can be eliminated in all cols.
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes eliminate_possible_numbers_col(sudoku_data_t & s_data) {
+	static SolveStepRes eliminate_possible_numbers_col(sudoku_data_t & s_data) {
 
 		bool found_number = false;
 		std::array<sudoku_size_t, square_width> occurrance_arr;
 
-		// Iterate over all rows 
+		// Iterate over all rows
 		for (sudoku_size_t col_num = 0; col_num < side_len; ++col_num) {
 
 			// Check if a number in this row can only occur in a particular square
 
-			// Iterate over all numbers 
+			// Iterate over all numbers
 			for (sudoku_size_t num = 0; num < side_len; ++num) {
 
 				// Check if number already set somewhere
@@ -452,7 +425,7 @@ class SudokuHandler {
 				// Iterate over parts of col
 				for (sudoku_size_t square_row_num = 0; square_row_num < square_width; ++square_row_num) {
 
-					const sudoku_size_t first_cell_index = square_row_num * side_len * square_height + col_num;
+					const sudoku_size_t first_cell_index = square_row_num * side_len * square_height  + col_num;
 
 					// Iterate over cells in col in square
 					for (sudoku_size_t square_num = 0; square_num < square_height; ++square_num) {
@@ -519,13 +492,13 @@ class SudokuHandler {
 
 	/// Looks for possible numbers that can be eliminated in all squares.
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes eliminate_possible_numbers_square(sudoku_data_t & s_data) {
+	static SolveStepRes eliminate_possible_numbers_square(sudoku_data_t & s_data) {
 
 		bool found_number = false;
 		std::array<sudoku_size_t, square_height> occurrance_arr_h;
 		std::array<sudoku_size_t, square_width> occurrance_arr_w;
 
-		// Iterate over all rows 
+		// Iterate over all rows
 		for (sudoku_size_t square_id = 0; square_id < side_len; ++square_id) {
 
 			const sudoku_size_t square_col_ind = square_id % square_height;
@@ -534,7 +507,7 @@ class SudokuHandler {
 
 			// Check if a number in this square can only occur in a particular row / col
 
-			// Iterate over all numbers 
+			// Iterate over all numbers
 			for (sudoku_size_t num = 0; num < side_len; ++num) {
 
 				// Check if number already set somewhere
@@ -659,20 +632,20 @@ class SudokuHandler {
 		}
 	}
 
-	/// Updating status uf solving process
-	SolveStepRes update(SolveStepRes old_step, SolveStepRes new_step) const {
+	// Updating status uf solving process
+	static SolveStepRes update(SolveStepRes old_step, SolveStepRes new_step) {
 		if (old_step == Invalid || new_step == Invalid) {
 			return Invalid;
 		}
-		else if (new_step == ValidNewFound) {
+		else if(new_step == ValidNewFound){
 			return ValidNewFound;
 		}
 		return old_step;
 	}
 
-	/// Try to solve the sudoku using the previously defined functions
+	// Try to solve the sudoku using the previously defined functions
 	template<bool printDebugInfo = printDebugInfodefault>
-	SolveStepRes try_solving(sudoku_data_t & s_data) {
+	static SolveStepRes try_solving(sudoku_data_t & s_data) {
 
 		SolveStepRes found_something = ValidNewFound;
 
@@ -690,10 +663,18 @@ class SudokuHandler {
 		return found_something;
 	}
 
-	/// Check if sudoku is solved.
-	bool solved(sudoku_data_t & s_data) {
+	// Check if sudoku is solved, raises an exception if it is invalid
+	template<sudoku_size_t square_height, sudoku_size_t square_width>
+	static bool solved(sudoku_data_t & s_data) {
+		constexpr sudoku_size_t side_len = square_height * square_width;
+		constexpr sudoku_size_t tot_n_cells = side_len * side_len;
+		constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
+
+		std::array<sudoku_size_t, side_len> col_arr;
+		std::array<sudoku_size_t, side_len> row_arr;
+
 		// Check if there is a number set in every cell
-		for (sudoku_size_t cell_ind = 0; cell_ind < tot_num_cells; ++cell_ind) {
+		for (sudoku_size_t cell_ind = 0; cell_ind < tot_n_cells; ++cell_ind) {
 			if (s_data[cell_ind * n_stored_per_cell] == 0) {
 				return false;
 			}
@@ -701,17 +682,17 @@ class SudokuHandler {
 		return true;
 	}
 
-	/// Find the cell with the least numbers possible
+	// Find the cell with the least numbers possible
 	template<bool printDebugInfo = printDebugInfodefault>
-	sudoku_size_t find_least_uncertain_cell(sudoku_data_t & s_data) {
+	static sudoku_size_t find_least_uncertain_cell(sudoku_data_t & s_data) {
 
 		sudoku_size_t min_poss_nums = side_len;
 		sudoku_size_t min_data_ind = 0;
 
-		// Iterate over all rows 
+		// Iterate over all rows
 		for (sudoku_size_t row_num = 0; row_num < side_len; ++row_num) {
 
-			// Iterate over all cols 
+			// Iterate over all cols
 			for (sudoku_size_t col_num = 0; col_num < side_len; ++col_num) {
 
 				const sudoku_size_t cell_ind = row_num + col_num * side_len;
@@ -737,22 +718,17 @@ class SudokuHandler {
 		return min_data_ind;
 	}
 
-	/// Find a solution and check if it is unique
-	template<bool random_order = False, bool printDebugInfo = printRecDebInfo,
-		typename RNG>
-	FullSol_t solve_brute_force_multiple_random(
-		sudoku_data_t & s_data,
-		RNG & rng, 
-		const rec_depth_t rec_dep = 0
-	) {
+	// Find a solution and check if it is unique
+	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+	static SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 
-		// Try solving 
+		// Try solving
 		SolveStepRes init_stat = try_solving(s_data);
 		if (init_stat == Invalid) {
-			return std::make_pair(InvalidSolution, rec_dep);
+			return InvalidSolution;
 		}
-		else if (solved(s_data)) {
-			return std::make_pair(UniqueSolution, rec_dep);
+		else if (solved<square_height, square_width>(s_data)) {
+			return UniqueSolution;
 		}
 
 		// Solve by guessing recursively
@@ -762,22 +738,10 @@ class SudokuHandler {
 		SolveResultFinal res = UnknownSolution;
 		sudoku_size_t num_sols = 0;
 
-		rec_depth_t curr_min_rd = -3;
-		rec_depth_t res_rd = -3;
-
-		// Random Order
-		std::array<sudoku_value_t, side_len> perm;
-		if constexpr (random_order) {
-			for (sudoku_size_t i = 0; i < side_len; ++i) {
-				perm[i] = i;
-			}
-			std::shuffle(perm.begin(), perm.end(), rng);
-		}
-
 		// Loop over all possible guesses
 		for (sudoku_size_t i = 0; i < side_len; ++i) {
 
-			const sudoku_size_t curr_i = random_order ? perm[i]: i;
+			const sudoku_size_t curr_i = i;
 
 			if (s_data[cell_picked + 1 + curr_i] == 2) {
 				// Copy data and set guessed value
@@ -785,73 +749,195 @@ class SudokuHandler {
 				s_data_copy[cell_picked] = curr_i + 1;
 
 				// Recursion
-				auto[res, res_rd] = solve_brute_force_multiple_random<random_order, printDebugInfo>(
-					s_data_copy, rng, rec_dep + 1);
+				res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
 				if (res == UniqueSolution) {
 					s_data_res = s_data_copy;
 					num_sols += 1;
-					if (curr_min_rd == -3 || res_rd < curr_min_rd) {
-						curr_min_rd = res;
-					}
 				}
 				if (num_sols > 1 || res == MultipleSolution) {
 					s_data = s_data_copy;
-					return std::make_pair(MultipleSolution, -1);
+					return MultipleSolution;
 				}
 			}
 		}
 		s_data = s_data_res;
 		if (num_sols == 1) {
-			return std::make_pair(UniqueSolution, curr_min_rd);
+			return UniqueSolution;
 		}
 		if (num_sols == 0) {
-			return std::make_pair(InvalidSolution, -2);
+			return InvalidSolution;
 		}
 		if (num_sols > 1) {
-			return std::make_pair(MultipleSolution, curr_min_rd);
+			return MultipleSolution;
 		}
 
 		// Should not happen
-		return std::make_pair(UnknownSolution, -3);
+		return UnknownSolution;
 	}
 
-public:
-	/// Default Constructor.
-	SudokuHandler() {};
+	// Find a solution and check if it is unique
+	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo, typename RNG>
+	static SolveResultFinal solve_brute_force_multiple_random(sudoku_data_t & s_data, RNG & rng) {
 
-	/// Construct from raw sudoku.
-	SudokuHandler(raw_sudoku_t raw_sud) {
-		set_sudoku(raw_sud);
-	};
-
-	/// Set the sudoku.
-	void set_sudoku(raw_sudoku_t raw_sud) {
-		this->raw_sud = raw_sud;
-		sud_data = init_sudoku_with_raw(raw_sud);
-		auto_fill(this->sud_data, true);
-	}
-
-	/// Solves the loaded sudoku.
-	FullSol_t solve(bool random_order = false) {
-		
-		FullSol_t sol;
-
-		if (random_order) {
-			// Initialize rng and solve.
-			std::mt19937 gen = std::mt19937(seed);
-			sol = solve_brute_force_multiple_random<true>(sud_data, gen);
+		// Try solving
+		SolveStepRes init_stat = try_solving(s_data);
+		if (init_stat == Invalid) {
+			return InvalidSolution;
 		}
-		else {
-			int rng = 0; // Dummy RNG.
-			sol = solve_brute_force_multiple_random<false>(sud_data, rng);
+		else if (solved<square_height, square_width>(s_data)) {
+			return UniqueSolution;
 		}
 
-		return sol;
+		// Solve by guessing recursively
+		sudoku_data_t s_data_copy = s_data;
+		sudoku_data_t s_data_res = s_data;
+		const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+		SolveResultFinal res = UnknownSolution;
+		sudoku_size_t num_sols = 0;
+
+		// Random Order
+		std::array<sudoku_value_t, side_len> perm;
+		for (sudoku_size_t i = 0; i < side_len; ++i) {
+			perm[i] = i;
+		}
+		std::shuffle(perm.begin(), perm.end(), rng);
+
+		// Loop over all possible guesses
+		for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+			const sudoku_size_t curr_i = perm[i];
+
+			if (s_data[cell_picked + 1 + curr_i] == 2) {
+				// Copy data and set guessed value
+				s_data_copy = s_data;
+				s_data_copy[cell_picked] = curr_i + 1;
+
+				// Recursion
+				res = solve_brute_force_multiple_random<square_height, square_width>(s_data_copy, rng);
+				if (res == UniqueSolution) {
+					s_data_res = s_data_copy;
+					num_sols += 1;
+				}
+				if (num_sols > 1 || res == MultipleSolution) {
+					s_data = s_data_copy;
+					return MultipleSolution;
+				}
+			}
+		}
+		s_data = s_data_res;
+		if (num_sols == 1) {
+			return UniqueSolution;
+		}
+		if (num_sols == 0) {
+			return InvalidSolution;
+		}
+		if (num_sols > 1) {
+			return MultipleSolution;
+		}
+
+		// Should not happen
+		return UnknownSolution;
 	}
 
+	// Count all solutions and check if it is unique
+	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+	static int solve_brute_force_all(sudoku_data_t & s_data) {
 
-	void test_init() const {
-		assert(this->tot_num_cells == this->side_len * this->side_len);
+		// Try solving
+		SolveStepRes init_stat = try_solving(s_data);
+		if (init_stat == Invalid) {
+			return 0;
+		}
+		else if (solved<square_height, square_width>(s_data)) {
+			return 1;
+		}
+
+		// Solve by guessing recursively
+		sudoku_data_t s_data_copy = s_data;
+		sudoku_data_t s_data_res = s_data;
+		const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+		sudoku_size_t num_sols = 0;
+
+		// Loop over all possible guesses
+		for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+			if (s_data[cell_picked + 1 + i] == 2) {
+				// Copy data and set guessed value
+				s_data_copy = s_data;
+				s_data_copy[cell_picked] = i + 1;
+
+				// Recursion
+				const int res = solve_brute_force_all<square_height, square_width>(s_data_copy);
+				num_sols += res;
+				if (res > 0) {
+					s_data_res = s_data_copy;
+				}
+			}
+		}
+		s_data = s_data_res;
+		return num_sols;
+	}
+
+	// Find a solution and check if it is unique
+	// Additionally find recursion depth
+	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+	static rec_depth_t solve_count_rec_depth(sudoku_data_t & s_data, const rec_depth_t rec_dep = 0) {
+
+		// Try solving
+		SolveStepRes init_stat = try_solving(s_data);
+		if (init_stat == Invalid) {
+			return -2;
+		}
+		else if (solved<square_height, square_width>(s_data)) {
+			return rec_dep;
+		}
+
+		// Solve by guessing recursively
+		sudoku_data_t s_data_copy = s_data;
+		sudoku_data_t s_data_res = s_data;
+		const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+		rec_depth_t res = -3;
+		sudoku_size_t num_sols = 0;
+
+		rec_depth_t curr_min_rd = -3;
+
+		// Loop over all possible guesses
+		for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+			if (s_data[cell_picked + 1 + i] == 2) {
+				// Copy data and set guessed value
+				s_data_copy = s_data;
+				s_data_copy[cell_picked] = i + 1;
+
+				// Recursion
+				res = solve_count_rec_depth<square_height, square_width>(
+					s_data_copy, rec_dep + 1);
+				if (res >= 0) {
+					s_data_res = s_data_copy;
+					num_sols += 1;
+					if (curr_min_rd == -3 || res < curr_min_rd) {
+						curr_min_rd = res;
+					}
+				}
+				if (num_sols > 1 || res == -1) {
+					s_data = s_data_copy;
+					return -1;
+				}
+			}
+		}
+		s_data = s_data_res;
+		if (num_sols == 1) {
+			return curr_min_rd;
+		}
+		if (num_sols == 0) {
+			return -2;
+		}
+		if (num_sols > 1) {
+			return -1;
+		}
+
+		// Should not happen
+		return -3;
 	}
 
 };
