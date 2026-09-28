@@ -292,7 +292,7 @@ class SudokuHandler {
 
 				if (s_data[data_ind] > 0) continue;
 				// Iterate over all numbers
-				sudoku_size_t last_possible_num = -1;
+				std::optional<sudoku_size_t> last_possible_num = std::nullopt;
 				sudoku_size_t num_possible_num = 0;
 				for (sudoku_size_t num = 0; num < side_len; ++num) {
 
@@ -308,7 +308,7 @@ class SudokuHandler {
 				}
 
 				if (num_possible_num == 1) {
-					s_data[data_ind] = 1 + last_possible_num;
+					s_data[data_ind] = 1 + *last_possible_num;
 					if constexpr (printDebugInfo) std::cout << "Found new number!\n";
 					found_number = true;
 				}

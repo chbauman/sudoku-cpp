@@ -2,15 +2,17 @@
 
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <string>
 #include <iostream>
 #include <random>
 #include <algorithm>
 #include <map>
 #include <fstream>
+#include <optional>
 
 /// Size type of sudoku.
-typedef int sudoku_size_t;
+typedef std::size_t sudoku_size_t;
 
 /// Type of sudoku entries.
 typedef int sudoku_value_t;
@@ -82,20 +84,20 @@ class RandomNumberPicker {
 public:
 	RandomNumberPicker(): cell_order(random_permutation<tot_num_cells>(gen)), number_order(random_permutation<side_len>(gen)){};
 
-	// Picks a random cell and fills it with a random possible number
-	random_pick_t pickAndSetRandom(sudoku_data_t & s_data){
-		random_pick_t ret_val = std::make_pair(-1, -1);
+	// Picks a random cell and fills it with a random possible number.
+	// Returns std::nullopt if no empty cell is left.
+	std::optional<random_pick_t> pickAndSetRandom(sudoku_data_t & s_data){
+		std::optional<random_pick_t> ret_val = std::nullopt;
 		const sudoku_size_t cell_index_init = dis(gen);
 		const sudoku_size_t num_ind_init = dis(gen);
 		for(sudoku_size_t i = 0; i < tot_num_cells; ++i){
 			const sudoku_size_t curr_pos = cell_order[(cell_index_init + i) % tot_num_cells];
 			if (s_data[n_stored_per_cell * curr_pos] == 0) {
-				ret_val.first = curr_pos;
 				for (sudoku_size_t k = 0; k < side_len; ++k) {
 					const sudoku_size_t curr_num = number_order[(num_ind_init + k) % side_len];
 					if (s_data[n_stored_per_cell * curr_pos + 1 + curr_num] == 2) {
-						ret_val.second = curr_num;
 						s_data[n_stored_per_cell * curr_pos] = curr_num + 1;
+						ret_val = random_pick_t{curr_pos, curr_num};
 						break;
 					}
 				}
@@ -195,27 +197,27 @@ void iterateDouble() {
 }
 
 /// Initialize an array with 0.
-template<sudoku_size_t n>
+template<std::size_t n>
 void setZero(std::array<sudoku_size_t, n> & arr){
-	for (sudoku_size_t i = 0; i < n; ++i) {
+	for (std::size_t i = 0; i < n; ++i) {
 		arr[i] = 0;
 	}
 };
 
 /// Sum all elements of an array.
-template<class value_t, sudoku_size_t n>
+template<class value_t, std::size_t n>
 value_t sum(const std::array<value_t, n> & arr) {
 	value_t sum_curr = (value_t)0;
-	for (sudoku_size_t i = 0; i < n; ++i) {
+	for (std::size_t i = 0; i < n; ++i) {
 		sum_curr += arr[i];
 	}
 	return sum_curr;
 };
 
 /// Check if all elements of array are 1.
-template<class value_t, sudoku_size_t n>
+template<class value_t, std::size_t n>
 bool check_all_1(const std::array<value_t, n> & arr) {
-	for (sudoku_size_t i = 0; i < n; ++i) {
+	for (std::size_t i = 0; i < n; ++i) {
 		if (arr[i] != (value_t)1) {
 			return false;
 		}
@@ -565,7 +567,7 @@ SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
 
 			if (s_data[data_ind] > 0) continue;
 			// Iterate over all numbers
-			sudoku_size_t last_possible_num = -1;
+			std::optional<sudoku_size_t> last_possible_num = std::nullopt;
 			sudoku_size_t num_possible_num = 0;
 			for (sudoku_size_t num = 0; num < side_len; ++num) {
 
@@ -581,7 +583,7 @@ SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
 			}
 
 			if (num_possible_num == 1) {
-				s_data[data_ind] = 1 + last_possible_num;
+				s_data[data_ind] = 1 + *last_possible_num;
 				if constexpr (printDebugInfo) std::cout << "Found new number!\n";
 				found_number = true;
 			}
