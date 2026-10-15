@@ -1,6 +1,8 @@
 #pragma once
 
-#include "Lib.h"
+#include "SudokuCore.h"
+#include "SudokuSolver.h"
+#include "SudokuGenerator.h"
 
 template<sudoku_size_t square_height = 3, sudoku_size_t square_width = 3>
 class SudokuHandler {

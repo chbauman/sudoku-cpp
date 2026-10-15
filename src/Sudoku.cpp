@@ -1,7 +1,9 @@
 // Sudoku.cpp : Diese Datei enthält die Funktion "main". Hier beginnt und endet die Ausführung des Programms.
 //
 
-#include "Lib.h"
+#include "SudokuCore.h"
+#include "SudokuSolver.h"
+#include "SudokuGenerator.h"
 
 #include <string>
 #include <iostream>
@@ -130,17 +132,17 @@ int main(int argc, char* argv[]){
 	auto_fill(sudoku, true);
 	raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
 
-	std::cout << solve_brute_force_all<3, 3>(sudoku) << " Solutions\n";
+	std::cout << SudokuSolver::solve_brute_force_all<3, 3>(sudoku) << " Solutions\n";
 	sudoku = init_sudoku_with_raw(input_sudoku);
 	auto_fill(sudoku, true);
-	std::cout << solve_count_rec_depth<3, 3>(sudoku) << " Min. Recursion Depth\n";
+	std::cout << SudokuSolver::solve_count_rec_depth<3, 3>(sudoku) << " Min. Recursion Depth\n";
 
 	raw_sud = get_raw_sudoku(sudoku);
 	std::cout << raw_sud << "\n";
 
-	generate_hard_sudokus();
+	SudokuGenerator::generate_hard_sudokus();
 
-	//auto s_map = load_coll("./Data/dat_copy.txt");
-	//separate_by_level_and_save(s_map);
+	//auto s_map = SudokuGenerator::load_coll("./Data/dat_copy.txt");
+	//SudokuGenerator::separate_by_level_and_save(s_map);
 
 }
