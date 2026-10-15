@@ -10,15 +10,15 @@ Since the code is only a handful of header files, there are no project files.
 Directly build it with g++:
 
 ```sh
-g++ -std=c++17 -O2 src/Solve.cpp    -o solve
-g++ -std=c++17 -O2 src/Generate.cpp -o generate
+g++ -std=c++20 -O2 src/Solve.cpp    -o solve
+g++ -std=c++20 -O2 src/Generate.cpp -o generate
 ```
 
 This is what [`.github/workflows/build.yml`](.github/workflows/build.yml)
 runs on every push and pull request. It also cross-compiles `solve.exe`/
 `generate.exe` for Windows with MinGW-w64, uploaded as a `windows-binaries`
 artifact on each run (see the Actions tab on GitHub) — no CMake/MSVC
-project needed, since the code is plain, portable C++17.
+project needed, since the code is plain, portable C++20.
 
 ### Releases
 
