@@ -48,9 +48,18 @@ inline std::ostream& operator<<(std::ostream & os, const SolveResultFinal & sol_
 
 constexpr bool printRecDebInfo = false;
 
-/// Deterministic and brute-force solving algorithms for a sudoku.
+/// Deterministic and brute-force solving algorithms for a sudoku of the
+/// given board dimensions (square_height x square_width squares).
+template<sudoku_size_t square_height, sudoku_size_t square_width>
 class SudokuSolver {
+private:
+	using Dims = SudokuDims<square_height, square_width>;
+	static constexpr sudoku_size_t side_len = Dims::side_len;
+	static constexpr sudoku_size_t n_stored_per_cell = Dims::n_stored_per_cell;
+
 public:
+	using sudoku_data_t = ::sudoku_data_t<square_height, square_width>;
+	using raw_sudoku_t = ::raw_sudoku_t<square_height, square_width>;
 
 	/// Looks for numbers that can only be placed in one cell in a given row/col.
 	template<bool printDebugInfo = printDebugInfodefault>
@@ -182,8 +191,8 @@ public:
 				// Iterate over all rows
 				for (sudoku_size_t cell_id = 0; cell_id < side_len; ++cell_id) {
 
-					const sudoku_size_t square_col_ind_inner = cell_id % square_height;
-					const sudoku_size_t square_row_ind_inner = cell_id / square_height;
+					const sudoku_size_t square_col_ind_inner = cell_id % square_width;
+					const sudoku_size_t square_row_ind_inner = cell_id / square_width;
 					const sudoku_size_t cell_ind = square_beg_ind + square_col_ind_inner + square_row_ind_inner * side_len;
 					if (s_data[cell_ind * n_stored_per_cell] == number + 1) {
 						++num_times_set;
@@ -207,8 +216,8 @@ public:
 				sudoku_size_t num_poss_places = 0;
 				sudoku_size_t cell_poss_num = 0;
 				for (sudoku_size_t cell_id = 0; cell_id < side_len; ++cell_id) {
-					const sudoku_size_t square_col_ind_inner = cell_id % square_height;
-					const sudoku_size_t square_row_ind_inner = cell_id / square_height;
+					const sudoku_size_t square_col_ind_inner = cell_id % square_width;
+					const sudoku_size_t square_row_ind_inner = cell_id / square_width;
 					const sudoku_size_t cell_ind = square_beg_ind + square_col_ind_inner + square_row_ind_inner * side_len;
 					if (s_data[cell_ind * n_stored_per_cell] == 0 && s_data[cell_ind * n_stored_per_cell + number + 1] == 2) {
 						++num_poss_places;
@@ -218,8 +227,8 @@ public:
 
 				// If it can only be in one place
 				if (num_poss_places == 1) {
-					const sudoku_size_t square_col_ind_inner = cell_poss_num % square_height;
-					const sudoku_size_t square_row_ind_inner = cell_poss_num / square_height;
+					const sudoku_size_t square_col_ind_inner = cell_poss_num % square_width;
+					const sudoku_size_t square_row_ind_inner = cell_poss_num / square_width;
 					const sudoku_size_t cell_ind = square_beg_ind + square_col_ind_inner + square_row_ind_inner * side_len;
 					s_data[cell_ind * n_stored_per_cell] = number + 1;
 					found_number = true;
@@ -513,7 +522,7 @@ public:
 				// Check if number already set somewhere
 				bool already_set = false;
 				for (sudoku_size_t square_col = 0; square_col < square_width; ++square_col) {
-					for (sudoku_size_t square_row = 0; square_row < square_width; ++square_row) {
+					for (sudoku_size_t square_row = 0; square_row < square_height; ++square_row) {
 						const sudoku_size_t cell_ind = square_beg_ind + square_col + square_row * side_len;
 						if (s_data[cell_ind * n_stored_per_cell] == num + 1) {
 							already_set = true;
@@ -658,23 +667,15 @@ public:
 			found_something = update(found_something, eliminate_possible_numbers_col<printDebugInfo>(s_data));
 			found_something = update(found_something, eliminate_possible_numbers_square<printDebugInfo>(s_data));
 
-			auto_fill<printDebugInfo>(s_data, false);
+			auto_fill<square_height, square_width, printDebugInfo>(s_data, false);
 		}
 		return found_something;
 	}
 
-	// Check if sudoku is solved, raises an exception if it is invalid
-	template<sudoku_size_t square_height, sudoku_size_t square_width>
+	// Check if sudoku is solved
 	static bool solved(sudoku_data_t & s_data) {
-		constexpr sudoku_size_t side_len = square_height * square_width;
-		constexpr sudoku_size_t tot_n_cells = side_len * side_len;
-		constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
-
-		std::array<sudoku_size_t, side_len> col_arr;
-		std::array<sudoku_size_t, side_len> row_arr;
-
 		// Check if there is a number set in every cell
-		for (sudoku_size_t cell_ind = 0; cell_ind < tot_n_cells; ++cell_ind) {
+		for (sudoku_size_t cell_ind = 0; cell_ind < Dims::tot_num_cells; ++cell_ind) {
 			if (s_data[cell_ind * n_stored_per_cell] == 0) {
 				return false;
 			}
@@ -719,7 +720,7 @@ public:
 	}
 
 	// Find a solution and check if it is unique
-	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+	template<bool printDebugInfo = printRecDebInfo>
 	static SolveResultFinal solve_brute_force_multiple(sudoku_data_t & s_data) {
 
 		// Try solving
@@ -727,7 +728,7 @@ public:
 		if (init_stat == Invalid) {
 			return InvalidSolution;
 		}
-		else if (solved<square_height, square_width>(s_data)) {
+		else if (solved(s_data)) {
 			return UniqueSolution;
 		}
 
@@ -749,7 +750,7 @@ public:
 				s_data_copy[cell_picked] = curr_i + 1;
 
 				// Recursion
-				res = solve_brute_force_multiple<square_height, square_width>(s_data_copy);
+				res = solve_brute_force_multiple(s_data_copy);
 				if (res == UniqueSolution) {
 					s_data_res = s_data_copy;
 					num_sols += 1;
@@ -776,7 +777,7 @@ public:
 	}
 
 	// Find a solution and check if it is unique
-	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo, typename RNG>
+	template<bool printDebugInfo = printRecDebInfo, typename RNG>
 	static SolveResultFinal solve_brute_force_multiple_random(sudoku_data_t & s_data, RNG & rng) {
 
 		// Try solving
@@ -784,7 +785,7 @@ public:
 		if (init_stat == Invalid) {
 			return InvalidSolution;
 		}
-		else if (solved<square_height, square_width>(s_data)) {
+		else if (solved(s_data)) {
 			return UniqueSolution;
 		}
 
@@ -813,7 +814,7 @@ public:
 				s_data_copy[cell_picked] = curr_i + 1;
 
 				// Recursion
-				res = solve_brute_force_multiple_random<square_height, square_width>(s_data_copy, rng);
+				res = solve_brute_force_multiple_random(s_data_copy, rng);
 				if (res == UniqueSolution) {
 					s_data_res = s_data_copy;
 					num_sols += 1;
@@ -840,7 +841,7 @@ public:
 	}
 
 	// Count all solutions and check if it is unique
-	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+	template<bool printDebugInfo = printRecDebInfo>
 	static int solve_brute_force_all(sudoku_data_t & s_data) {
 
 		// Try solving
@@ -848,7 +849,7 @@ public:
 		if (init_stat == Invalid) {
 			return 0;
 		}
-		else if (solved<square_height, square_width>(s_data)) {
+		else if (solved(s_data)) {
 			return 1;
 		}
 
@@ -867,7 +868,7 @@ public:
 				s_data_copy[cell_picked] = i + 1;
 
 				// Recursion
-				const int res = solve_brute_force_all<square_height, square_width>(s_data_copy);
+				const int res = solve_brute_force_all(s_data_copy);
 				num_sols += res;
 				if (res > 0) {
 					s_data_res = s_data_copy;
@@ -880,7 +881,7 @@ public:
 
 	// Find a solution and check if it is unique
 	// Additionally find recursion depth
-	template<sudoku_size_t square_height, sudoku_size_t square_width, bool printDebugInfo = printRecDebInfo>
+	template<bool printDebugInfo = printRecDebInfo>
 	static rec_depth_t solve_count_rec_depth(sudoku_data_t & s_data, const rec_depth_t rec_dep = 0) {
 
 		// Try solving
@@ -888,7 +889,7 @@ public:
 		if (init_stat == Invalid) {
 			return -2;
 		}
-		else if (solved<square_height, square_width>(s_data)) {
+		else if (solved(s_data)) {
 			return rec_dep;
 		}
 
@@ -910,8 +911,7 @@ public:
 				s_data_copy[cell_picked] = i + 1;
 
 				// Recursion
-				res = solve_count_rec_depth<square_height, square_width>(
-					s_data_copy, rec_dep + 1);
+				res = solve_count_rec_depth(s_data_copy, rec_dep + 1);
 				if (res >= 0) {
 					s_data_res = s_data_copy;
 					num_sols += 1;

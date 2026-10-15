@@ -11,5 +11,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build
+      - name: Build demo
         run: g++ -std=c++17 -O2 -Wall -Wextra src/Sudoku.cpp -o sudoku
+
+      - name: Build solve
+        run: g++ -std=c++17 -O2 -Wall -Wextra src/Solve.cpp -o solve
+
+      - name: Build generate
+        run: g++ -std=c++17 -O2 -Wall -Wextra src/Generate.cpp -o generate
