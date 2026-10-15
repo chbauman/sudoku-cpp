@@ -12,22 +12,23 @@
 
 namespace sudoku_detail {
 
-/// Splits a comma-separated line into its fields. Used by the on-disk
-/// puzzle collection format (see SudokuGenerator::generate_sud_char),
-/// which is comma-delimited rather than fixed-width so it works
-/// regardless of how many digits a cell value or frequency count takes
-/// (boards with more than 9 values per cell need two-digit values).
-inline std::vector<std::string> split_csv(const std::string & s) {
+/// Splits a string on a single-character delimiter. Used by the on-disk
+/// puzzle collection format (see SudokuGenerator::generate_sud_char and
+/// SudokuGenerator::save_coll), which is delimiter-separated rather than
+/// fixed-width so it works regardless of how many digits a cell value or
+/// frequency count takes (boards with more than 9 values per cell need
+/// two-digit values).
+inline std::vector<std::string> split(const std::string & s, char delim) {
 	std::vector<std::string> tokens;
 	std::size_t start = 0;
 	while (true) {
-		const std::size_t comma = s.find(',', start);
-		if (comma == std::string::npos) {
+		const std::size_t pos = s.find(delim, start);
+		if (pos == std::string::npos) {
 			tokens.push_back(s.substr(start));
 			break;
 		}
-		tokens.push_back(s.substr(start, comma - start));
-		start = comma + 1;
+		tokens.push_back(s.substr(start, pos - start));
+		start = pos + 1;
 	}
 	return tokens;
 }
@@ -243,29 +244,34 @@ public:
 		return false;
 	}
 
-	/// Converts a raw sudoku to a comma-separated string of its
-	/// side_len*side_len cell values.
+	/// Converts a raw sudoku to a space-separated string of its
+	/// side_len*side_len cell values - the same row format \c solve's
+	/// command line accepts, so a puzzle/solution from the on-disk
+	/// collection can be pasted directly into \c solve.
 	///
 	/// Does the opposite of \ref string_to_sud().
 	static std::string sud_to_string(const raw_sudoku_t & s) {
 		std::string res;
 		for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
-			if (i > 0) res += ",";
+			if (i > 0) res += " ";
 			res += std::to_string(s[i]);
 		}
 		return res;
 	}
 
-	/// Converts a comma-separated string of side_len*side_len cell
-	/// values back to a sudoku.
+	/// Converts a space-separated string of side_len*side_len cell
+	/// values back to a sudoku. Returns std::nullopt if it doesn't
+	/// contain exactly that many values.
 	///
 	/// Does the opposite of \ref sud_to_string().
-	static raw_sudoku_t string_to_sud(const std::string & str) {
-		const std::vector<std::string> tokens = sudoku_detail::split_csv(str);
+	static std::optional<raw_sudoku_t> string_to_sud(const std::string & str) {
+		std::istringstream iss(str);
 		raw_sudoku_t rs;
 		for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
-			rs[i] = std::stoi(tokens[i]);
+			if (!(iss >> rs[i])) return std::nullopt;
 		}
+		sudoku_size_t leftover;
+		if (iss >> leftover) return std::nullopt;
 		return rs;
 	}
 
@@ -296,7 +302,7 @@ public:
 			const std::vector<sud_and_sol_t> sas = x.second;
 			for (auto& e : sas) {
 				const auto&[s, sol] = e;
-				myfile << desc << "," << sud_to_string(s) << "," << sud_to_string(sol) << "\n";
+				myfile << desc << ";" << sud_to_string(s) << ";" << sud_to_string(sol) << "\n";
 			}
 		}
 		myfile.close();
@@ -319,36 +325,32 @@ public:
 			return sud_map;
 		}
 
-		// Read file linewise and extract info. Each line is fully
-		// comma-separated: the descriptor fields generate_sud_char()
-		// produces (level, filled-in count, side_len frequency counts),
-		// followed by the puzzle's side_len*side_len cells, followed by
-		// the solution's side_len*side_len cells.
+		// Read file linewise and extract info. Each line has 3
+		// semicolon-separated sections: the descriptor generate_sud_char()
+		// produces, the puzzle, and its solution - the latter two in the
+		// same space-separated row format solve's command line accepts
+		// (see sud_to_string()), so either can be copied straight out of
+		// this file and pasted into solve.
 		std::ifstream file(folder_path);
 		std::string str;
-		constexpr sudoku_size_t n_desc_fields = 2 + side_len;
-		constexpr sudoku_size_t n_cells = side_len * side_len;
 		while (std::getline(file, str)) {
-			const std::vector<std::string> tokens = sudoku_detail::split_csv(str);
-			if (tokens.size() != n_desc_fields + 2 * n_cells) {
-				std::cout << "Skipping malformed line (expected " << n_desc_fields + 2 * n_cells
-					<< " comma-separated fields, got " << tokens.size() << ")\n";
+			const std::vector<std::string> sections = sudoku_detail::split(str, ';');
+			if (sections.size() != 3) {
+				std::cout << "Skipping malformed line (expected 3 ';'-separated sections, got "
+					<< sections.size() << ")\n";
 				continue;
 			}
 
-			std::string desc = tokens[0];
-			for (sudoku_size_t i = 1; i < n_desc_fields; ++i) {
-				desc += "," + tokens[i];
+			const std::string & desc = sections[0];
+			const std::optional<raw_sudoku_t> s = string_to_sud(sections[1]);
+			const std::optional<raw_sudoku_t> s_sol = string_to_sud(sections[2]);
+			if (!s || !s_sol) {
+				std::cout << "Skipping malformed line (puzzle/solution doesn't have exactly "
+					<< side_len * side_len << " cells)\n";
+				continue;
 			}
 
-			raw_sudoku_t s;
-			raw_sudoku_t s_sol;
-			for (sudoku_size_t i = 0; i < n_cells; ++i) {
-				s[i] = std::stoi(tokens[n_desc_fields + i]);
-				s_sol[i] = std::stoi(tokens[n_desc_fields + n_cells + i]);
-			}
-
-			const bool tr = add_to_coll(sud_map, desc, s, s_sol);
+			const bool tr = add_to_coll(sud_map, desc, *s, *s_sol);
 			if (tr == false) {
 				std::cout << "Fucking Error Ocurred!!!!!!!!!\n\n\n\n";
 			}
