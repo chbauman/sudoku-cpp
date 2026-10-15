@@ -20,6 +20,14 @@ runs on every push and pull request. It also cross-compiles `solve.exe`/
 artifact on each run (see the Actions tab on GitHub) — no CMake/MSVC
 project needed, since the code is plain, portable C++17.
 
+### Releases
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs when
+a GitHub release is published: it builds `solve`/`generate` for both Linux
+and Windows (cross-compiled with MinGW-w64) and attaches
+`sudoku-cpp-<tag>-linux-x86_64.tar.gz`/`sudoku-cpp-<tag>-windows-x86_64.zip`
+to the release as downloadable assets.
+
 ### API docs
 
 [`Doxyfile`](Doxyfile) is set up to document `src/`. With
