@@ -39,18 +39,28 @@ default to a standard 9x9 board (3x3 squares) and accept
 ```
 
 Takes a puzzle in [row format](#input--output-format) as its one positional
-argument, reports how many solutions it has, and prints one if at least one
-exists. Exit code is `0` if solved, `1` if invalid/unsolvable, `2` on a
-usage error.
+argument. By default, solves it and reports whether the solution is unique
+(stopping as soon as that's known, without enumerating every solution if
+there are many), printing the solution if at least one exists. Exit code
+is `0` if solved, `1` if invalid/unsolvable, `2` on a usage error.
 
 ```
 $ ./solve --help
-Usage: ./solve [--square-height H] [--square-width W] "<puzzle>"
+Usage: ./solve [--square-height H] [--square-width W] [--first-only | --count-all] "<puzzle>"
 
   <puzzle>          Row-major, space-separated cell values, 0 = empty.
                     Length must be (H*W)^2, e.g. 81 for the default 9x9 board.
   --square-height   Block height (default 3).
   --square-width    Block width (default 3).
+  --first-only      Stop at the first solution found, without checking
+                    whether it's the only one. Rarely needed: the default
+                    already checks uniqueness at the same speed, but this
+                    can be faster on puzzles where a second solution
+                    exists but is hard to find.
+  --count-all       Count every solution exactly. Can be far slower than
+                    the default on underconstrained puzzles (many
+                    solutions); use when you need the exact count rather
+                    than just "unique" vs "multiple".
 ```
 
 ### `generate`

@@ -10,24 +10,35 @@
 
 namespace {
 
+enum class Mode { CheckUnique, FirstOnly, CountAll };
+
 struct Args {
 	sudoku_size_t square_height = 3;
 	sudoku_size_t square_width = 3;
-	bool first_only = false;
+	Mode mode = Mode::CheckUnique;
 	std::string puzzle;
 };
 
 void print_usage(const char * prog) {
 	std::cerr <<
-		"Usage: " << prog << " [--square-height H] [--square-width W] [--first-only] \"<puzzle>\"\n"
+		"Usage: " << prog << " [--square-height H] [--square-width W] [--first-only | --count-all] \"<puzzle>\"\n"
 		"\n"
 		"  <puzzle>          Row-major, space-separated cell values, 0 = empty.\n"
 		"                    Length must be (H*W)^2, e.g. 81 for the default 9x9 board.\n"
 		"  --square-height   Block height (default 3).\n"
 		"  --square-width    Block width (default 3).\n"
-		"  --first-only      Stop at the first solution found instead of counting\n"
-		"                    every solution. Faster on puzzles with many solutions,\n"
-		"                    but doesn't report how many there are.\n"
+		"  --first-only      Stop at the first solution found, without checking\n"
+		"                    whether it's the only one. Rarely needed: the default\n"
+		"                    already checks uniqueness at the same speed, but this\n"
+		"                    can be faster on puzzles where a second solution\n"
+		"                    exists but is hard to find.\n"
+		"  --count-all       Count every solution exactly. Can be far slower than\n"
+		"                    the default on underconstrained puzzles (many\n"
+		"                    solutions); use when you need the exact count rather\n"
+		"                    than just \"unique\" vs \"multiple\".\n"
+		"\n"
+		"By default, solves and reports whether the solution is unique, stopping\n"
+		"as soon as that's known (without enumerating every solution).\n"
 		"\n"
 		"Supported (square-height, square-width) pairs: 2x2, 2x3, 3x2, 3x3, 3x4, 4x3, 4x4.\n"
 		"\n"
@@ -38,6 +49,7 @@ void print_usage(const char * prog) {
 
 bool parse_args(int argc, char** argv, Args & args) {
 	std::vector<std::string> positional;
+	bool mode_set = false;
 	for (int i = 1; i < argc; ++i) {
 		const std::string a = argv[i];
 		if (a == "--square-height" && i + 1 < argc) {
@@ -46,8 +58,13 @@ bool parse_args(int argc, char** argv, Args & args) {
 		else if (a == "--square-width" && i + 1 < argc) {
 			args.square_width = std::stoul(argv[++i]);
 		}
-		else if (a == "--first-only") {
-			args.first_only = true;
+		else if (a == "--first-only" || a == "--count-all") {
+			if (mode_set) {
+				std::cerr << "error: --first-only and --count-all are mutually exclusive.\n";
+				return false;
+			}
+			args.mode = (a == "--first-only") ? Mode::FirstOnly : Mode::CountAll;
+			mode_set = true;
 		}
 		else if (a == "-h" || a == "--help") {
 			return false;
@@ -91,21 +108,35 @@ int run(const Args & args) {
 	sudoku_data_t<sq_h, sq_w> sudoku = init_sudoku_with_raw<sq_h, sq_w>(raw);
 	auto_fill<sq_h, sq_w>(sudoku, true);
 
-	if (args.first_only) {
-		const bool found = SudokuSolver<sq_h, sq_w>::solve_brute_force_first(sudoku);
-		std::cout << (found ? "Solution found.\n" : "No solution found.\n");
-		if (found) {
-			print_raw_sudoku<sq_h, sq_w>(std::cout, get_raw_sudoku<sq_h, sq_w>(sudoku));
-		}
-		return found ? 0 : 1;
-	}
+	using Solver = SudokuSolver<sq_h, sq_w>;
 
-	const int n_solutions = SudokuSolver<sq_h, sq_w>::solve_brute_force_all(sudoku);
-	std::cout << n_solutions << " solution(s) found.\n";
-	if (n_solutions > 0) {
-		print_raw_sudoku<sq_h, sq_w>(std::cout, get_raw_sudoku<sq_h, sq_w>(sudoku));
+	switch (args.mode) {
+		case Mode::FirstOnly: {
+			const bool found = Solver::solve_brute_force_first(sudoku);
+			std::cout << (found ? "Solution found.\n" : "No solution found.\n");
+			if (found) {
+				print_raw_sudoku<sq_h, sq_w>(std::cout, get_raw_sudoku<sq_h, sq_w>(sudoku));
+			}
+			return found ? 0 : 1;
+		}
+		case Mode::CountAll: {
+			const int n_solutions = Solver::solve_brute_force_all(sudoku);
+			std::cout << n_solutions << " solution(s) found.\n";
+			if (n_solutions > 0) {
+				print_raw_sudoku<sq_h, sq_w>(std::cout, get_raw_sudoku<sq_h, sq_w>(sudoku));
+			}
+			return n_solutions > 0 ? 0 : 1;
+		}
+		case Mode::CheckUnique:
+		default: {
+			const SolveResultFinal res = Solver::solve_brute_force_multiple(sudoku);
+			std::cout << res;
+			if (res == UniqueSolution || res == MultipleSolution) {
+				print_raw_sudoku<sq_h, sq_w>(std::cout, get_raw_sudoku<sq_h, sq_w>(sudoku));
+			}
+			return (res == UniqueSolution || res == MultipleSolution) ? 0 : 1;
+		}
 	}
-	return n_solutions > 0 ? 0 : 1;
 }
 
 } // namespace
