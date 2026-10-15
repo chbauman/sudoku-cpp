@@ -879,6 +879,44 @@ public:
 		return num_sols;
 	}
 
+	// Finds a single solution (not necessarily unique) and stops as soon as
+	// one is found, without exploring remaining guesses. Faster than
+	// solve_brute_force_all when only one solution is wanted, in particular
+	// on puzzles with many solutions.
+	template<bool printDebugInfo = printRecDebInfo>
+	static bool solve_brute_force_first(sudoku_data_t & s_data) {
+
+		// Try solving
+		SolveStepRes init_stat = try_solving(s_data);
+		if (init_stat == Invalid) {
+			return false;
+		}
+		else if (solved(s_data)) {
+			return true;
+		}
+
+		// Solve by guessing recursively
+		sudoku_data_t s_data_copy = s_data;
+		const sudoku_size_t cell_picked = find_least_uncertain_cell(s_data);
+
+		// Loop over all possible guesses
+		for (sudoku_size_t i = 0; i < side_len; ++i) {
+
+			if (s_data[cell_picked + 1 + i] == 2) {
+				// Copy data and set guessed value
+				s_data_copy = s_data;
+				s_data_copy[cell_picked] = i + 1;
+
+				// Recursion
+				if (solve_brute_force_first(s_data_copy)) {
+					s_data = s_data_copy;
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	// Find a solution and check if it is unique
 	// Additionally find recursion depth
 	template<bool printDebugInfo = printRecDebInfo>

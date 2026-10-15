@@ -9,7 +9,6 @@ plus a handful of `.cpp` files, so plain `g++` invocations build it:
 ```sh
 g++ -std=c++17 -O2 src/Solve.cpp    -o solve
 g++ -std=c++17 -O2 src/Generate.cpp -o generate
-g++ -std=c++17 -O2 src/Sudoku.cpp   -o sudoku    # library usage demo
 ```
 
 This is exactly what [`.github/workflows/build.yml`](.github/workflows/build.yml)
@@ -136,25 +135,6 @@ already set (the cell's own entry is non-zero).
 `init_sudoku_with_raw`/`get_raw_sudoku` convert between the two
 representations, and `auto_fill` populates the possibility entries from the
 given digits.
-
-### Example: solving a puzzle from your own code
-
-```cpp
-#include "SudokuCore.h"
-#include "SudokuSolver.h"
-
-raw_sudoku_t<3, 3> puzzle = { /* ... 81 cells, 0 = empty ... */ };
-
-sudoku_data_t<3, 3> sudoku = init_sudoku_with_raw<3, 3>(puzzle);
-auto_fill<3, 3>(sudoku, true);
-
-int n_solutions = SudokuSolver<3, 3>::solve_brute_force_all(sudoku);
-std::cout << n_solutions << " solution(s)\n";
-print_raw_sudoku<3, 3>(std::cout, get_raw_sudoku<3, 3>(sudoku)); // the (first) solved grid, if any
-```
-
-Swap `<3, 3>` for any other supported `<square_height, square_width>` pair
-to work with a different board size — see [Board sizes](#board-sizes).
 
 ### Using it as a library
 

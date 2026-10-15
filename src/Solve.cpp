@@ -13,17 +13,21 @@ namespace {
 struct Args {
 	sudoku_size_t square_height = 3;
 	sudoku_size_t square_width = 3;
+	bool first_only = false;
 	std::string puzzle;
 };
 
 void print_usage(const char * prog) {
 	std::cerr <<
-		"Usage: " << prog << " [--square-height H] [--square-width W] \"<puzzle>\"\n"
+		"Usage: " << prog << " [--square-height H] [--square-width W] [--first-only] \"<puzzle>\"\n"
 		"\n"
 		"  <puzzle>          Row-major, space-separated cell values, 0 = empty.\n"
 		"                    Length must be (H*W)^2, e.g. 81 for the default 9x9 board.\n"
 		"  --square-height   Block height (default 3).\n"
 		"  --square-width    Block width (default 3).\n"
+		"  --first-only      Stop at the first solution found instead of counting\n"
+		"                    every solution. Faster on puzzles with many solutions,\n"
+		"                    but doesn't report how many there are.\n"
 		"\n"
 		"Supported (square-height, square-width) pairs: 2x2, 2x3, 3x2, 3x3, 3x4, 4x3, 4x4.\n"
 		"\n"
@@ -41,6 +45,9 @@ bool parse_args(int argc, char** argv, Args & args) {
 		}
 		else if (a == "--square-width" && i + 1 < argc) {
 			args.square_width = std::stoul(argv[++i]);
+		}
+		else if (a == "--first-only") {
+			args.first_only = true;
 		}
 		else if (a == "-h" || a == "--help") {
 			return false;
@@ -83,6 +90,15 @@ int run(const Args & args) {
 
 	sudoku_data_t<sq_h, sq_w> sudoku = init_sudoku_with_raw<sq_h, sq_w>(raw);
 	auto_fill<sq_h, sq_w>(sudoku, true);
+
+	if (args.first_only) {
+		const bool found = SudokuSolver<sq_h, sq_w>::solve_brute_force_first(sudoku);
+		std::cout << (found ? "Solution found.\n" : "No solution found.\n");
+		if (found) {
+			print_raw_sudoku<sq_h, sq_w>(std::cout, get_raw_sudoku<sq_h, sq_w>(sudoku));
+		}
+		return found ? 0 : 1;
+	}
 
 	const int n_solutions = SudokuSolver<sq_h, sq_w>::solve_brute_force_all(sudoku);
 	std::cout << n_solutions << " solution(s) found.\n";
