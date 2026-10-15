@@ -5,6 +5,7 @@
 
 #include <map>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 
 /// Returns a random permutation of size n.
@@ -42,7 +43,7 @@ public:
 
 	// Picks a random cell and fills it with a random possible number.
 	// Returns std::nullopt if no empty cell is left.
-	std::optional<random_pick_t> pickAndSetRandom(sudoku_data_t & s_data){
+	std::optional<random_pick_t> pickAndSetRandom(sudoku_data_t<square_height, square_width> & s_data){
 		std::optional<random_pick_t> ret_val = std::nullopt;
 		const sudoku_size_t cell_index_init = dis(gen);
 		const sudoku_size_t num_ind_init = dis(gen);
@@ -81,7 +82,7 @@ private:
 
 /// Eliminates the random pick as possibility.
 template<sudoku_size_t square_height, sudoku_size_t square_width>
-void eliminate_random_pick(sudoku_data_t & s_data, const random_pick_t & rp) {
+void eliminate_random_pick(sudoku_data_t<square_height, square_width> & s_data, const random_pick_t & rp) {
 	constexpr sudoku_size_t side_len = square_height * square_width;
 	constexpr sudoku_size_t n_stored_per_cell = side_len + 1;
 	s_data[rp.first * n_stored_per_cell + 1 + rp.second] = 1;
@@ -92,14 +93,26 @@ void eliminate_random_pick(sudoku_data_t & s_data, const random_pick_t & rp) {
 typedef int num_sud_t;
 typedef unsigned int num_filled_t;
 typedef std::string sud_char_t;
-typedef std::pair<raw_sudoku_t, raw_sudoku_t> sud_and_sol_t;
-typedef std::map<sud_char_t, std::vector<sud_and_sol_t> > sud_coll_t;
 
 typedef std::pair<SolveResultFinal, rec_depth_t> FullSol_t;
 
-/// Generates and persists sudoku puzzles, rating each by solving difficulty.
+/// Generates and persists sudoku puzzles of the given board dimensions,
+/// rating each by solving difficulty.
+template<sudoku_size_t square_height, sudoku_size_t square_width>
 class SudokuGenerator {
+private:
+	using Dims = SudokuDims<square_height, square_width>;
+	static constexpr sudoku_size_t side_len = Dims::side_len;
+	static constexpr sudoku_size_t tot_num_cells = Dims::tot_num_cells;
+	static constexpr sudoku_size_t n_stored_per_cell = Dims::n_stored_per_cell;
+
+	using Solver = SudokuSolver<square_height, square_width>;
+
 public:
+	using sudoku_data_t = ::sudoku_data_t<square_height, square_width>;
+	using raw_sudoku_t = ::raw_sudoku_t<square_height, square_width>;
+	using sud_and_sol_t = std::pair<raw_sudoku_t, raw_sudoku_t>;
+	using sud_coll_t = std::map<sud_char_t, std::vector<sud_and_sol_t> >;
 
 	// Counts the number that is currently set in the given sudoku
 	static sudoku_size_t count_num_known_numbers(const sudoku_data_t & s_data) {
@@ -229,8 +242,24 @@ public:
 		return rs;
 	}
 
+	/// Default directory for this board size's on-disk puzzle collection
+	/// (kept separate per board size, so different dimensions never collide).
+	static std::string default_file_dir() {
+		return "./Data/" + std::to_string(square_height) + "x" + std::to_string(square_width) + "/";
+	}
+
+	static std::string default_file_path() {
+		return default_file_dir() + "dat.txt";
+	}
+
 	/// Saves the collection in text format.
-	static void save_coll(const sud_coll_t & sud_map, std::string folder_path = file_path) {
+	static void save_coll(const sud_coll_t & sud_map, std::string folder_path = "") {
+		if (folder_path.empty()) folder_path = default_file_path();
+
+		const std::filesystem::path p(folder_path);
+		if (p.has_parent_path()) {
+			std::filesystem::create_directories(p.parent_path());
+		}
 
 		std::ofstream myfile;
 		myfile.open(folder_path);
@@ -253,7 +282,8 @@ public:
 	}
 
 	// Load the sudokus saved on disk into collection
-	static sud_coll_t load_coll(std::string folder_path = file_path) {
+	static sud_coll_t load_coll(std::string folder_path = "") {
+		if (folder_path.empty()) folder_path = default_file_path();
 		sud_coll_t sud_map;
 
 		// Return empty map if file does not exist
@@ -300,13 +330,20 @@ public:
 
 		// Save to separate files
 		for (rec_depth_t i = 0; i < max_lvl; ++i) {
-			std::string f_name = file_dir + "ext_lvl_" + std::to_string(i) + ".txt";
+			std::string f_name = default_file_dir() + "ext_lvl_" + std::to_string(i) + ".txt";
 			save_coll(lvl_sep_map[i], f_name);
 		}
 	}
 
 	/// Generate hard Sudokus and save them to the disk.
-	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000) {
+	///
+	/// @param max_suds_per_lvl Stop collecting more puzzles for a difficulty
+	///   level once this many have been found for it.
+	/// @param min_level Minimum recursion depth (difficulty) a puzzle must
+	///   reach to be kept.
+	/// @param max_iterations Number of distinct fully-solved grids to try
+	///   generating puzzles from before stopping.
+	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000) {
 
 		// Initialize
 		std::array<sudoku_value_t, side_len> lvl_count;
@@ -314,37 +351,27 @@ public:
 		sud_coll_t sud_map = load_coll();
 		std::mt19937 gen = std::mt19937(seed);
 
-		for (int k = 0; k < 50000; ++k) {
+		for (int k = 0; k < max_iterations; ++k) {
 
 			// Generate full sudoku
-			const raw_sudoku_t zero_sudoku_3x3 = {
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0,
-				0,0,0,0,0,0,0,0,0
-			};
-			sudoku_data_t sudoku = init_sudoku_with_raw(zero_sudoku_3x3);
-			auto_fill(sudoku, true);
-			raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
-			SudokuSolver::solve_brute_force_multiple_random<3, 3>(sudoku, gen);
-			const raw_sudoku_t raw_s_sol = get_raw_sudoku(sudoku);
+			raw_sudoku_t zero_sudoku{};
+			sudoku_data_t sudoku = init_sudoku_with_raw<square_height, square_width>(zero_sudoku);
+			auto_fill<square_height, square_width>(sudoku, true);
+			Solver::solve_brute_force_multiple_random(sudoku, gen);
+			const raw_sudoku_t raw_s_sol = get_raw_sudoku<square_height, square_width>(sudoku);
 			sudoku_data_t sudoku_solution_copy = sudoku;
 
 			for (int l = 0; l < 100; ++l) {
 				sudoku = sudoku_solution_copy;
 
-				// Remove digits randomly
-				const sudoku_size_t n_init = 45;
+				// Remove digits randomly. Scaled to match the original
+				// hardcoded 45-of-81 ratio for the default 9x9 board.
+				const sudoku_size_t n_init = tot_num_cells * 5 / 9;
 				for (sudoku_size_t i = 0; i < n_init; ++i) {
 					sudoku_size_t remove_ind = std::rand() % (tot_num_cells - i);
 					remove_nth(sudoku, remove_ind);
 				}
-				auto_fill(sudoku, true);
+				auto_fill<square_height, square_width>(sudoku, true);
 				sudoku_data_t sudoku_copy = sudoku;
 
 				// Remove more, untill multiple solutions possible
@@ -355,16 +382,16 @@ public:
 					// Remove one digit
 					sudoku_size_t remove_ind = std::rand() % (tot_num_cells - n_curr);
 					remove_nth(sudoku, remove_ind);
-					auto_fill(sudoku, true);
+					auto_fill<square_height, square_width>(sudoku, true);
 					sudoku_copy = sudoku;
 					++n_curr;
 
 					// Try solving
-					rec_depth_t rec_dep = SudokuSolver::solve_count_rec_depth<3, 3>(sudoku_copy);
-					if (rec_dep > 3) {
+					rec_depth_t rec_dep = Solver::solve_count_rec_depth(sudoku_copy);
+					if (rec_dep > min_level) {
 						const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
 						if (n_sud_w_lvl < max_suds_per_lvl) {
-							const raw_sudoku_t raw_sud = get_raw_sudoku(sudoku);
+							const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
 							const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
 							bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
 							if (added) {
@@ -375,7 +402,6 @@ public:
 						}
 					}
 					else if (rec_dep < 0) {
-						//std::cout << "No more unique sudokus :( " << rec_dep << "\n";
 						unique_sol_exists = false;
 					}
 				}
@@ -387,8 +413,4 @@ public:
 		}
 		std::cout << "Finished!\n";
 	}
-
-private:
-	static inline std::string file_dir = "./Data/";
-	static inline std::string file_path = file_dir + "dat.txt";
 };
