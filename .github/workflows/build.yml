@@ -16,3 +16,20 @@ jobs:
 
       - name: Build generate
         run: g++ -std=c++17 -O2 -Wall -Wextra src/Generate.cpp -o generate
+
+      - name: Install MinGW-w64 (Windows cross-compiler)
+        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+
+      - name: Build solve.exe (Windows)
+        run: x86_64-w64-mingw32-g++ -std=c++17 -O2 -Wall -Wextra -static src/Solve.cpp -o solve.exe
+
+      - name: Build generate.exe (Windows)
+        run: x86_64-w64-mingw32-g++ -std=c++17 -O2 -Wall -Wextra -static src/Generate.cpp -o generate.exe
+
+      - name: Upload Windows binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: |
+            solve.exe
+            generate.exe

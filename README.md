@@ -15,7 +15,10 @@ g++ -std=c++17 -O2 src/Generate.cpp -o generate
 ```
 
 This is what [`.github/workflows/build.yml`](.github/workflows/build.yml)
-runs on every push and pull request.
+runs on every push and pull request. It also cross-compiles `solve.exe`/
+`generate.exe` for Windows with MinGW-w64, uploaded as a `windows-binaries`
+artifact on each run (see the Actions tab on GitHub) — no CMake/MSVC
+project needed, since the code is plain, portable C++17.
 
 ### API docs
 
