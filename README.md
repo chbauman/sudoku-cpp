@@ -17,6 +17,14 @@ g++ -std=c++17 -O2 src/Generate.cpp -o generate
 This is what [`.github/workflows/build.yml`](.github/workflows/build.yml)
 runs on every push and pull request.
 
+### Releases
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs when
+a GitHub release is published: it builds `solve`/`generate` for both Linux
+and Windows (cross-compiled with MinGW-w64) and attaches
+`sudoku-cpp-<tag>-linux-x86_64.tar.gz`/`sudoku-cpp-<tag>-windows-x86_64.zip`
+to the release as downloadable assets.
+
 ### API docs
 
 [`Doxyfile`](Doxyfile) is set up to document `src/`. With

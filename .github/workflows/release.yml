@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Linux binaries
+        run: |
+          g++ -std=c++17 -O2 -static-libgcc -static-libstdc++ src/Solve.cpp -o solve
+          g++ -std=c++17 -O2 -static-libgcc -static-libstdc++ src/Generate.cpp -o generate
+          tar -czf "sudoku-cpp-${{ github.event.release.tag_name }}-linux-x86_64.tar.gz" solve generate
+
+      - name: Install MinGW-w64 (Windows cross-compiler)
+        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+
+      - name: Build Windows binaries
+        run: |
+          x86_64-w64-mingw32-g++ -std=c++17 -O2 -static src/Solve.cpp -o solve.exe
+          x86_64-w64-mingw32-g++ -std=c++17 -O2 -static src/Generate.cpp -o generate.exe
+          zip "sudoku-cpp-${{ github.event.release.tag_name }}-windows-x86_64.zip" solve.exe generate.exe
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            "sudoku-cpp-${{ github.event.release.tag_name }}-linux-x86_64.tar.gz" \
+            "sudoku-cpp-${{ github.event.release.tag_name }}-windows-x86_64.zip"
