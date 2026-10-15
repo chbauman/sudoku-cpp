@@ -1,5 +1,7 @@
 # sudoku-cpp
 
+![Sample sudoku](Sudoku.png)
+
 Sudoku solving and generating with c++
 
 ## Building
