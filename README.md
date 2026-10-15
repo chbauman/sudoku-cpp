@@ -88,6 +88,63 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
                     generating puzzles from before stopping (default 50000).
 ```
 
+### Generated puzzle file format
+
+`generate` saves puzzles under `./Data/<square_height>x<square_width>/dat.txt`
+— one line per puzzle, all fields comma-separated:
+
+```
+<level>,<filled-in count>,<freq_1>,...,<freq_N>,<puzzle cell_1>,...,<puzzle cell_M>,<solution cell_1>,...,<solution cell_M>
+```
+
+where `N = square_height*square_width` (one frequency count per digit
+value) and `M = N*N` (one value per cell, row-major, same layout as
+[row format](#input--output-format)). For example, this line was written
+by actually saving the 9x9 puzzle from the [`solve` example](#solve) above
+together with a solution:
+
+```
+2,38,7,6,5,5,4,3,3,3,2,0,0,4,0,8,9,5,7,0,0,0,0,7,1,0,6,3,4,5,0,0,4,6,3,0,0,0,9,3,0,0,0,0,2,0,0,6,0,0,9,0,1,0,0,3,0,0,2,0,0,0,0,9,5,0,0,0,1,5,2,0,0,9,8,5,3,0,9,4,0,0,0,0,2,9,8,3,0,4,0,0,3,6,4,2,8,9,5,7,1,2,9,8,7,1,5,6,3,4,5,1,7,4,6,3,9,2,8,9,3,1,5,4,8,2,6,7,6,7,5,9,2,1,8,4,3,4,8,2,3,7,6,1,9,5,7,4,6,1,5,2,3,8,9,8,5,3,6,9,4,7,1,2,1,2,9,8,3,7,4,5,6
+```
+
+Breaking that down:
+- `2` — difficulty level (the minimum recursion depth `solve_count_rec_depth`
+  needed to solve it).
+- `38` — 38 cells were given in the puzzle.
+- `7,6,5,5,4,3,3,3,2` — how many times each digit occurs among those 38
+  given cells, one count per digit 1-9, sorted in decreasing order.
+- Next 81 values — the puzzle itself (`0` = empty).
+- Final 81 values — its solution.
+
+The first `2 + square_height*square_width` fields (level, count,
+frequencies) together form the string `generate_sud_char()` produces, the
+same string `add_to_coll()` uses as a bucketing key — so `--max-per-level`
+really limits "puzzles with this exact level and digit-frequency profile",
+not just "puzzles at this level".
+
+`separate_by_level_and_save()` (a library function on `SudokuGenerator`,
+not currently exposed by `generate`'s CLI) splits a loaded collection by
+level into `./Data/<H>x<W>/ext_lvl_<N>.txt` files in the same format.
+
+The format is comma-delimited (rather than fixed-width) specifically so it
+still works for board sizes with more than 9 values per cell, like 4x4
+squares (16x16 grid, two-digit cell values).
+
+### `example_data.txt`
+
+[`example_data.txt`](example_data.txt) is a pre-generated sample collection
+of 2908 hard 9x9 sudokus (difficulty levels 1 through 8 — mostly 1-3; level
+8 appears once), left over from an earlier version of this project. It
+isn't referenced anywhere in the code — it's just sample data, not loaded
+by anything.
+
+It also predates the comma-delimited format above: it's space-delimited and
+fixed-width instead (one single-digit-assuming 12-character descriptor,
+then each cell as a 2-character `"N "` token). `load_coll()` can't parse
+that layout, so pointing it at this file just logs "Skipping malformed
+line" for every line and returns an empty collection — it would need
+converting to the current format first.
+
 ### Board sizes
 
 Board dimensions aren't limited to the standard 9x9: `--square-height`/

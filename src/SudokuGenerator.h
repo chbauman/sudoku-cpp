@@ -7,6 +7,31 @@
 #include <fstream>
 #include <filesystem>
 #include <sstream>
+#include <vector>
+
+namespace sudoku_detail {
+
+/// Splits a comma-separated line into its fields. Used by the on-disk
+/// puzzle collection format (see SudokuGenerator::generate_sud_char),
+/// which is comma-delimited rather than fixed-width so it works
+/// regardless of how many digits a cell value or frequency count takes
+/// (boards with more than 9 values per cell need two-digit values).
+inline std::vector<std::string> split_csv(const std::string & s) {
+	std::vector<std::string> tokens;
+	std::size_t start = 0;
+	while (true) {
+		const std::size_t comma = s.find(',', start);
+		if (comma == std::string::npos) {
+			tokens.push_back(s.substr(start));
+			break;
+		}
+		tokens.push_back(s.substr(start, comma - start));
+		start = comma + 1;
+	}
+	return tokens;
+}
+
+} // namespace sudoku_detail
 
 /// Returns a random permutation of size n.
 template<sudoku_size_t n, class rng>
@@ -157,12 +182,17 @@ public:
 		std::cout << "Fucking index too high :(\n";
 	}
 
-	// Generates a string that describes the sudoku.
-	// First number:			Difficulty level {0, ... , 9}
-	// First 2 numbers:			# Filled-in digits
-	// Next 9 numbers:			# Decreasing frequency count of numbers from 1 to 9
-	// E.g. "133664433322" for a sudoku containing 33 filled-in digits
-	// and difficulty level 1.
+	// Generates a string that describes the sudoku's difficulty and digit
+	// distribution. Used both as a human-readable summary and as the
+	// bucketing key add_to_coll() groups puzzles by (so at most
+	// max_sud_per_key puzzles with the same profile are kept).
+	//
+	// Comma-separated fields: difficulty level, count of filled-in
+	// digits, then one frequency count per digit 1..side_len (how many
+	// times each digit occurs among the filled-in digits), sorted in
+	// decreasing order.
+	// E.g. "1,33,6,6,4,4,3,3,3,2,2" for a 9x9 sudoku containing 33
+	// filled-in digits and difficulty level 1.
 	static sud_char_t generate_sud_char(const raw_sudoku_t & s, const rec_depth_t lvl) {
 
 		// Initialize
@@ -183,13 +213,9 @@ public:
 		std::sort(freq.begin(), freq.end(), std::greater<sudoku_value_t>());
 
 		// Construct String Output
-		sud_char_t res = std::to_string(tot_n_digits);
-		if (tot_n_digits < 10) {
-			res = "0" + res;
-		}
-		res = std::to_string(lvl) + res;
+		sud_char_t res = std::to_string(lvl) + "," + std::to_string(tot_n_digits);
 		for (auto& e : freq) {
-			res = res + std::to_string(e);
+			res += "," + std::to_string(e);
 		}
 		return res;
 	}
@@ -219,25 +245,28 @@ public:
 		return false;
 	}
 
-	/// Converts a raw sudoku to a string.
+	/// Converts a raw sudoku to a comma-separated string of its
+	/// side_len*side_len cell values.
 	///
 	/// Does the opposite of \ref string_to_sud().
 	static std::string sud_to_string(const raw_sudoku_t & s) {
-		std::string res = "";
+		std::string res;
 		for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
-			res += std::to_string(s[i]) + " ";
+			if (i > 0) res += ",";
+			res += std::to_string(s[i]);
 		}
 		return res;
 	}
 
-	/// Convert String to Sudoku.
+	/// Converts a comma-separated string of side_len*side_len cell
+	/// values back to a sudoku.
 	///
 	/// Does the opposite of \ref sud_to_string().
 	static raw_sudoku_t string_to_sud(const std::string & str) {
+		const std::vector<std::string> tokens = sudoku_detail::split_csv(str);
 		raw_sudoku_t rs;
 		for (sudoku_size_t i = 0; i < side_len * side_len; ++i) {
-			const std::string num_str = str.substr(2 * i, 2 * i + 1);
-			rs[i] = std::stoi(num_str);
+			rs[i] = std::stoi(tokens[i]);
 		}
 		return rs;
 	}
@@ -269,7 +298,7 @@ public:
 			const std::vector<sud_and_sol_t> sas = x.second;
 			for (auto& e : sas) {
 				const auto&[s, sol] = e;
-				myfile << desc << " " << sud_to_string(s) << sud_to_string(sol) << "\n";
+				myfile << desc << "," << sud_to_string(s) << "," << sud_to_string(sol) << "\n";
 			}
 		}
 		myfile.close();
@@ -292,16 +321,35 @@ public:
 			return sud_map;
 		}
 
-		// Read file linewise and extract info
+		// Read file linewise and extract info. Each line is fully
+		// comma-separated: the descriptor fields generate_sud_char()
+		// produces (level, filled-in count, side_len frequency counts),
+		// followed by the puzzle's side_len*side_len cells, followed by
+		// the solution's side_len*side_len cells.
 		std::ifstream file(folder_path);
 		std::string str;
+		constexpr sudoku_size_t n_desc_fields = 2 + side_len;
+		constexpr sudoku_size_t n_cells = side_len * side_len;
 		while (std::getline(file, str)) {
-			const std::string desc = str.substr(0, 12);
-			const sudoku_size_t s_end = 13 + 2 * side_len * side_len;
-			const std::string s_str = str.substr(13, s_end);
-			const std::string s_sol_str = str.substr(s_end, s_end + 2 * side_len * side_len);
-			const raw_sudoku_t s = string_to_sud(s_str);
-			const raw_sudoku_t s_sol = string_to_sud(s_sol_str);
+			const std::vector<std::string> tokens = sudoku_detail::split_csv(str);
+			if (tokens.size() != n_desc_fields + 2 * n_cells) {
+				std::cout << "Skipping malformed line (expected " << n_desc_fields + 2 * n_cells
+					<< " comma-separated fields, got " << tokens.size() << ")\n";
+				continue;
+			}
+
+			std::string desc = tokens[0];
+			for (sudoku_size_t i = 1; i < n_desc_fields; ++i) {
+				desc += "," + tokens[i];
+			}
+
+			raw_sudoku_t s;
+			raw_sudoku_t s_sol;
+			for (sudoku_size_t i = 0; i < n_cells; ++i) {
+				s[i] = std::stoi(tokens[n_desc_fields + i]);
+				s_sol[i] = std::stoi(tokens[n_desc_fields + n_cells + i]);
+			}
+
 			const bool tr = add_to_coll(sud_map, desc, s, s_sol);
 			if (tr == false) {
 				std::cout << "Fucking Error Ocurred!!!!!!!!!\n\n\n\n";
@@ -318,13 +366,13 @@ public:
 
 		for (auto& x : sud_map)
 		{
-			// Find Level
+			// Find Level (the first comma-separated field of desc)
 			const sud_char_t & desc = x.first;
 			const std::vector<sud_and_sol_t> sas = x.second;
-			const std::string lvl_string = desc.substr(0, 1);
-			const rec_depth_t lvl = std::stoi(lvl_string);
+			const rec_depth_t lvl = std::stoi(desc.substr(0, desc.find(',')));
 
-			// Add to collection
+			// Add to collection, skipping levels this fixed-size bucket array can't hold
+			if (lvl < 0 || lvl >= max_lvl) continue;
 			lvl_sep_map[lvl][desc] = sas;
 		}
 
