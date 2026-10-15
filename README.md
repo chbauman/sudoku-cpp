@@ -84,12 +84,13 @@ Usage: ./solve [--square-height H] [--square-width W] [--first-only | --count-al
 ```
 
 Generates sudoku puzzles, rates each by solving difficulty (recursion depth
-needed), and saves them under `./Data/<square_height>x<square_width>/`. This
-can run for a long time — interrupt it with `Ctrl+C` once you have enough.
+needed), and saves them to `./Data/<square_height>x<square_width>/dat.txt`
+by default (override with `--output-path`). This can run for a long time —
+interrupt it with `Ctrl+C` once you have enough.
 
 ```
 $ ./generate --help
-Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--min-level L] [--iterations N]
+Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--min-level L] [--iterations N] [--output-path PATH]
 
   --square-height   Block height (default 3).
   --square-width    Block width (default 3).
@@ -99,6 +100,9 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
                     reach to be kept (default 3).
   --iterations      Number of distinct fully-solved grids to try
                     generating puzzles from before stopping (default 50000).
+  --output-path     File to load existing puzzles from and save to
+                    (default ./Data/<square_height>x<square_width>/dat.txt).
+                    Parent directories are created if missing.
 ```
 
 ### Generated puzzle file format

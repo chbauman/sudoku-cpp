@@ -391,12 +391,15 @@ public:
 	///   reach to be kept.
 	/// @param max_iterations Number of distinct fully-solved grids to try
 	///   generating puzzles from before stopping.
-	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000) {
+	/// @param output_path File to load existing puzzles from and save to.
+	///   Defaults to default_file_path() (./Data/<H>x<W>/dat.txt) when empty.
+	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000, std::string output_path = "") {
+		if (output_path.empty()) output_path = default_file_path();
 
 		// Initialize
 		std::array<sudoku_value_t, side_len> lvl_count;
 		std::fill(lvl_count.begin(), lvl_count.end(), 0);
-		sud_coll_t sud_map = load_coll();
+		sud_coll_t sud_map = load_coll(output_path);
 		std::mt19937 gen = std::mt19937(seed);
 
 		for (int k = 0; k < max_iterations; ++k) {
@@ -456,7 +459,7 @@ public:
 			}
 			if ((k + 1) % 200 == 0) {
 				std::cout << "Iteration: " << k + 1 << ", Saving...\n";
-				save_coll(sud_map);
+				save_coll(sud_map, output_path);
 			}
 		}
 		std::cout << "Finished!\n";
