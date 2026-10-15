@@ -114,44 +114,43 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
 ### Generated puzzle file format
 
 `generate` saves puzzles under `./Data/<square_height>x<square_width>/dat.txt`
-— one line per puzzle, all fields comma-separated:
+— one line per puzzle, with 3 `;`-separated sections:
 
 ```
-<level>,<filled-in count>,<freq_1>,...,<freq_N>,<puzzle cell_1>,...,<puzzle cell_M>,<solution cell_1>,...,<solution cell_M>
+<descriptor>;<puzzle>;<solution>
 ```
 
-where `N = square_height*square_width` (one frequency count per digit
-value) and `M = N*N` (one value per cell, row-major, same layout as
-[row format](#input--output-format)). For example, this line was written
-by actually saving the 9x9 puzzle from the [`solve` example](#solve) above
-together with a solution:
+The puzzle and solution sections are each in exactly the same
+space-separated [row format](#input--output-format) `solve` takes on its
+command line — so either can be copied straight out of this file and
+pasted into `solve "..."` with no conversion. For example, this line was
+written by actually saving the puzzle from the [`solve` example](#solve)
+above together with its solution:
 
 ```
-2,38,7,6,5,5,4,3,3,3,2,0,0,4,0,8,9,5,7,0,0,0,0,7,1,0,6,3,4,5,0,0,4,6,3,0,0,0,9,3,0,0,0,0,2,0,0,6,0,0,9,0,1,0,0,3,0,0,2,0,0,0,0,9,5,0,0,0,1,5,2,0,0,9,8,5,3,0,9,4,0,0,0,0,2,9,8,3,0,4,0,0,3,6,4,2,8,9,5,7,1,2,9,8,7,1,5,6,3,4,5,1,7,4,6,3,9,2,8,9,3,1,5,4,8,2,6,7,6,7,5,9,2,1,8,4,3,4,8,2,3,7,6,1,9,5,7,4,6,1,5,2,3,8,9,8,5,3,6,9,4,7,1,2,1,2,9,8,3,7,4,5,6
+2,22,5,3,3,3,3,2,1,1,1;6 0 0 0 0 8 9 4 0 9 0 0 0 0 6 1 0 0 0 7 0 0 4 0 0 0 0 2 0 0 6 1 0 0 0 0 0 0 0 0 0 0 2 0 0 0 8 9 0 0 2 0 0 0 0 0 0 0 6 0 0 0 5 0 0 0 0 0 0 0 3 0 8 0 0 0 0 1 6 0 0;6 2 5 1 7 8 9 4 3 9 4 8 3 2 6 1 5 7 3 7 1 9 4 5 8 6 2 2 5 7 6 1 9 3 8 4 4 6 3 5 8 7 2 9 1 1 8 9 4 3 2 5 7 6 7 9 2 8 6 3 4 1 5 5 1 6 2 9 4 7 3 8 8 3 4 7 5 1 6 2 9
 ```
 
-Breaking that down:
+The descriptor section is comma-separated metadata, not meant to be used
+as puzzle input:
 - `2` — difficulty level (the minimum recursion depth `solve_count_rec_depth`
   needed to solve it).
-- `38` — 38 cells were given in the puzzle.
-- `7,6,5,5,4,3,3,3,2` — how many times each digit occurs among those 38
+- `22` — 22 cells were given in the puzzle.
+- `5,3,3,3,3,2,1,1,1` — how many times each digit occurs among those 22
   given cells, one count per digit 1-9, sorted in decreasing order.
-- Next 81 values — the puzzle itself (`0` = empty).
-- Final 81 values — its solution.
 
-The first `2 + square_height*square_width` fields (level, count,
-frequencies) together form the string `generate_sud_char()` produces, the
-same string `add_to_coll()` uses as a bucketing key — so `--max-per-level`
-really limits "puzzles with this exact level and digit-frequency profile",
-not just "puzzles at this level".
+The descriptor is exactly the string `generate_sud_char()` produces, which
+is also the string `add_to_coll()` uses as a bucketing key — so
+`--max-per-level` really limits "puzzles with this exact level and
+digit-frequency profile", not just "puzzles at this level".
 
 `separate_by_level_and_save()` (a library function on `SudokuGenerator`,
 not currently exposed by `generate`'s CLI) splits a loaded collection by
 level into `./Data/<H>x<W>/ext_lvl_<N>.txt` files in the same format.
 
-The format is comma-delimited (rather than fixed-width) specifically so it
-still works for board sizes with more than 9 values per cell, like 4x4
-squares (16x16 grid, two-digit cell values).
+Both sections use delimiters (rather than fixed-width fields) so the
+format still works for board sizes with more than 9 values per cell, like
+4x4 squares (16x16 grid, two-digit cell values).
 
 ### `generated_dat.txt`
 
