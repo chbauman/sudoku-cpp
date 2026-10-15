@@ -144,8 +144,7 @@ bool check_all_1(const std::array<value_t, n> & arr) {
 /// Fills it with zeros.
 template<sudoku_size_t sq_h, sudoku_size_t sq_w, bool printDebugInfo = printDebugInfodefault>
 sudoku_data_t<sq_h, sq_w> init_sudoku() {
-	sudoku_data_t<sq_h, sq_w> s_data;
-	std::fill(std::begin(s_data), std::end(s_data), (sudoku_size_t)0);
+	sudoku_data_t<sq_h, sq_w> s_data{};
 	if constexpr (printDebugInfo) std::cout << "Filled Sudoku with Zeros.\n";
 	return s_data;
 }

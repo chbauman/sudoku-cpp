@@ -2,6 +2,8 @@
 
 #include "SudokuCore.h"
 
+#include <numeric>
+
 /// Recursion depth returned by \ref SudokuSolver::solve_count_rec_depth.
 ///
 /// -3: Error occurred, -2: Invalid, -1: Multiple, 0: Unique (no recursion
@@ -798,10 +800,8 @@ public:
 
 		// Random Order
 		std::array<sudoku_value_t, side_len> perm;
-		for (sudoku_size_t i = 0; i < side_len; ++i) {
-			perm[i] = i;
-		}
-		std::shuffle(perm.begin(), perm.end(), rng);
+		std::iota(perm.begin(), perm.end(), 0);
+		std::ranges::shuffle(perm, rng);
 
 		// Loop over all possible guesses
 		for (sudoku_size_t i = 0; i < side_len; ++i) {

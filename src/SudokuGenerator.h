@@ -6,6 +6,7 @@
 #include <map>
 #include <fstream>
 #include <filesystem>
+#include <numeric>
 #include <sstream>
 #include <vector>
 
@@ -37,10 +38,8 @@ inline std::vector<std::string> split_csv(const std::string & s) {
 template<sudoku_size_t n, class rng>
 std::array<sudoku_size_t, n> random_permutation(rng & g) {
 	std::array<sudoku_size_t, n> cell_order;
-	for (sudoku_size_t i = 0; i < n; ++i) {
-		cell_order[i] = i;
-	}
-	std::shuffle(cell_order.begin(), cell_order.end(), g);
+	std::iota(cell_order.begin(), cell_order.end(), 0);
+	std::ranges::shuffle(cell_order, g);
 	return cell_order;
 }
 
@@ -196,8 +195,7 @@ public:
 	static sud_char_t generate_sud_char(const raw_sudoku_t & s, const rec_depth_t lvl) {
 
 		// Initialize
-		std::array<sudoku_value_t, side_len> freq;
-		std::fill(freq.begin(), freq.end(), 0);
+		std::array<sudoku_value_t, side_len> freq{};
 		sudoku_size_t tot_n_digits = 0;
 
 		// Loop over sudoku
@@ -210,7 +208,7 @@ public:
 		}
 
 		// Sort Frequencies
-		std::sort(freq.begin(), freq.end(), std::greater<sudoku_value_t>());
+		std::ranges::sort(freq, std::greater{});
 
 		// Construct String Output
 		sud_char_t res = std::to_string(lvl) + "," + std::to_string(tot_n_digits);
@@ -397,8 +395,7 @@ public:
 		if (output_path.empty()) output_path = default_file_path();
 
 		// Initialize
-		std::array<sudoku_value_t, side_len> lvl_count;
-		std::fill(lvl_count.begin(), lvl_count.end(), 0);
+		std::array<sudoku_value_t, side_len> lvl_count{};
 		sud_coll_t sud_map = load_coll(output_path);
 		std::mt19937 gen = std::mt19937(seed);
 
