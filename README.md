@@ -28,6 +28,12 @@ and Windows (cross-compiled with MinGW-w64) and attaches
 `sudoku-cpp-<tag>-linux-x86_64.tar.gz`/`sudoku-cpp-<tag>-windows-x86_64.zip`
 to the release as downloadable assets.
 
+To cut a release (with the GitHub CLI):
+
+```sh
+gh release create v0.1.0 --repo chbauman/sudoku-cpp --title v0.1.0 --generate-notes --target main
+```
+
 ### API docs
 
 [`Doxyfile`](Doxyfile) is set up to document `src/`. With
