@@ -130,20 +130,23 @@ The format is comma-delimited (rather than fixed-width) specifically so it
 still works for board sizes with more than 9 values per cell, like 4x4
 squares (16x16 grid, two-digit cell values).
 
-### `example_data.txt`
+### `generated_dat.txt`
 
-[`example_data.txt`](example_data.txt) is a pre-generated sample collection
-of 2908 hard 9x9 sudokus (difficulty levels 1 through 8 — mostly 1-3; level
-8 appears once), left over from an earlier version of this project. It
-isn't referenced anywhere in the code — it's just sample data, not loaded
-by anything.
+[`generated_dat.txt`](generated_dat.txt) is a pre-generated sample
+collection of 2908 hard 9x9 sudokus (difficulty levels 1 through 8 —
+mostly 1-3; level 8 appears once), in the file format above. It isn't
+referenced anywhere in the code — it's just sample data — but
+`SudokuGenerator<3, 3>::load_coll("generated_dat.txt")` will load it
+correctly, and every entry has been verified: puzzle/solution lengths,
+the descriptor's digit-count and frequency fields matching the puzzle's
+actual contents, the solution agreeing with the puzzle's given cells, and
+every row/column/square of every solution being a valid 1-9 arrangement.
 
-It also predates the comma-delimited format above: it's space-delimited and
-fixed-width instead (one single-digit-assuming 12-character descriptor,
-then each cell as a 2-character `"N "` token). `load_coll()` can't parse
-that layout, so pointing it at this file just logs "Skipping malformed
-line" for every line and returns an empty collection — it would need
-converting to the current format first.
+(This file used to be called `example_data.txt` and predate the
+comma-delimited format above — space-delimited and fixed-width instead,
+one single-digit-assuming 12-character descriptor followed by each cell as
+a 2-character `"N "` token. It's been converted and renamed to match the
+current format and what it actually is.)
 
 ### Board sizes
 
