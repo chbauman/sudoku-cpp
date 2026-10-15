@@ -1,17 +1,18 @@
 # sudoku-cpp
-Sudoku Solving and generating with c++
+
+Sudoku solving and generating with c++
 
 ## Building
 
-There's no CMake/Makefile project here — just a few headers under `src/`
-plus a handful of `.cpp` files, so plain `g++` invocations build it:
+Since the code is only a handful of header files, there are no project files.
+Directly build it with g++:
 
 ```sh
 g++ -std=c++17 -O2 src/Solve.cpp    -o solve
 g++ -std=c++17 -O2 src/Generate.cpp -o generate
 ```
 
-This is exactly what [`.github/workflows/build.yml`](.github/workflows/build.yml)
+This is what [`.github/workflows/build.yml`](.github/workflows/build.yml)
 runs on every push and pull request.
 
 ### API docs
@@ -93,7 +94,7 @@ Board dimensions aren't limited to the standard 9x9: `--square-height`/
 `--square-width` select the block size (e.g. `2 2` for a 4x4 board, `2 3` for
 a 6x6 board). Both tools are built for a small fixed set of sizes, listed in
 their own `--help`: `2x2, 2x3, 3x2, 3x3, 3x4, 4x3, 4x4`. An unsupported size
-is rejected with an error rather than silently solved wrong.
+is rejected with an error.
 
 ### Input / output format
 
