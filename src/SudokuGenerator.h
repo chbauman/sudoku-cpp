@@ -5,6 +5,7 @@
 
 #include <map>
 #include <fstream>
+#include <iomanip>
 #include <filesystem>
 #include <numeric>
 #include <sstream>
@@ -490,6 +491,7 @@ public:
 				lvl_count[lvl] += static_cast<num_sud_t>(sas.size());
 			}
 		}
+		const std::array<num_sud_t, side_len + 1> lvl_count_loaded = lvl_count;
 		std::mt19937 gen = std::mt19937(seed);
 
 		for (int k = 0; k < max_iterations; ++k) {
@@ -546,6 +548,22 @@ public:
 				save_coll(sud_map, output_path);
 			}
 		}
-		std::cout << "Finished!\n";
+
+		// The periodic saving above misses the last iterations
+		save_coll(sud_map, output_path);
+		std::cout << "Finished! Saved to " << output_path << "\n";
+
+		// Frequency count: puzzles per level in the collection
+		std::cout << "Level | In collection | Added in this run\n";
+		num_sud_t tot_in_coll = 0;
+		num_sud_t tot_added = 0;
+		for (sudoku_size_t lvl = 0; lvl <= side_len; ++lvl) {
+			if (lvl_count[lvl] == 0) continue;
+			const num_sud_t added = lvl_count[lvl] - lvl_count_loaded[lvl];
+			std::cout << std::setw(5) << lvl << " | " << std::setw(13) << lvl_count[lvl] << " | " << std::setw(17) << added << "\n";
+			tot_in_coll += lvl_count[lvl];
+			tot_added += added;
+		}
+		std::cout << "Total | " << std::setw(13) << tot_in_coll << " | " << std::setw(17) << tot_added << "\n";
 	}
 };

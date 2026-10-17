@@ -93,6 +93,9 @@ Generates sudoku puzzles, rates each by solving difficulty (guessing depth
 needed, see [Difficulty level](#difficulty-level)), and saves them to `./Data/<square_height>x<square_width>/dat.txt`
 by default (override with `--output-path`). This can run for a long time —
 interrupt it with `Ctrl+C` once you have enough.
+The collection is saved every 200 iterations and again when `generate` is done,
+which then prints how many puzzles there are per level (in total and added in
+this run).
 
 ```
 $ ./generate --help
