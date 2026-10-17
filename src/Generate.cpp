@@ -15,13 +15,14 @@ struct Args {
 	num_sud_t max_per_level = 1000;
 	rec_depth_t min_level = 3;
 	int iterations = 50000;
+	int climb_steps = 2000;
 	std::string output_path;
 };
 
 void print_usage(const char * prog) {
 	std::cerr <<
 		"Usage: " << prog << " [--square-height H] [--square-width W]"
-		" [--max-per-level N] [--min-level L] [--iterations N] [--output-path PATH]\n"
+		" [--max-per-level N] [--min-level L] [--iterations N] [--climb-steps N] [--output-path PATH]\n"
 		"\n"
 		"  --square-height   Block height (default 3).\n"
 		"  --square-width    Block width (default 3).\n"
@@ -31,6 +32,9 @@ void print_usage(const char * prog) {
 		"                    reach to be kept (default 3).\n"
 		"  --iterations      Number of distinct fully-solved grids to try\n"
 		"                    generating puzzles from before stopping (default 50000).\n"
+		"  --climb-steps     Moves of the local search that tries to make each puzzle\n"
+		"                    of level 2 or more harder by moving one clue (default 2000,\n"
+		"                    0 disables it).\n"
 		"  --output-path     File to load existing puzzles from and save to\n"
 		"                    (default ./Data/<square_height>x<square_width>/dat.txt).\n"
 		"                    Parent directories are created if missing.\n"
@@ -56,6 +60,9 @@ bool parse_args(int argc, char** argv, Args & args) {
 		else if (a == "--iterations" && i + 1 < argc) {
 			args.iterations = std::stoi(argv[++i]);
 		}
+		else if (a == "--climb-steps" && i + 1 < argc) {
+			args.climb_steps = std::stoi(argv[++i]);
+		}
 		else if (a == "--output-path" && i + 1 < argc) {
 			args.output_path = argv[++i];
 		}
@@ -72,7 +79,7 @@ bool parse_args(int argc, char** argv, Args & args) {
 
 template<sudoku_size_t sq_h, sudoku_size_t sq_w>
 int run(const Args & args) {
-	SudokuGenerator<sq_h, sq_w>::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path);
+	SudokuGenerator<sq_h, sq_w>::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps);
 	return 0;
 }
 
