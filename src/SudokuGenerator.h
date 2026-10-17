@@ -502,7 +502,10 @@ public:
 			if (use_minimal && lvl >= min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
 				const sud_char_t desc = generate_sud_char(s, lvl);
 				const AddResult added = add_to_coll(sud_map, desc, s, s_sol);
-				if (added == AddResult::Duplicate) ++n_duplicates;
+				if (added == AddResult::Duplicate) {
+					++n_duplicates;
+					std::cout << "Warning: duplicate puzzle skipped, ID: " << desc << "\n";
+				}
 				if (added == AddResult::Added) {
 					std::cout << "Climbed to hard Sudoku, level: " << lvl << ", With ID: " << desc << "\n";
 					lvl_count[lvl]++;
@@ -585,7 +588,10 @@ public:
 						const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
 						const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
 						const AddResult added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
-						if (added == AddResult::Duplicate) ++n_duplicates;
+						if (added == AddResult::Duplicate) {
+							++n_duplicates;
+							std::cout << "Warning: duplicate puzzle skipped, ID: " << desc << "\n";
+						}
 						if (added == AddResult::Added) {
 							std::cout << "Added hard Sudoku :D, level: " << rec_dep;
 							std::cout << ", With ID: " << desc << "\n";

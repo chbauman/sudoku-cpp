@@ -95,7 +95,7 @@ by default (override with `--output-path`). This can run for a long time —
 interrupt it with `Ctrl+C` once you have enough.
 Every run uses a new random seed (printed at the start; pass `--seed` to repeat
 a run). Puzzles that are already in the collection are skipped, with a warning
-at the end, and puzzles that occur twice in the loaded file are only kept once
+each time one is found (and a summary at the end), and puzzles that occur twice in the loaded file are only kept once
 (`--check-duplicates` lists them).
 The collection is saved every 200 iterations and again when `generate` is done,
 which then prints how many puzzles there are per level (in total and added in
