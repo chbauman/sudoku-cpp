@@ -383,6 +383,29 @@ public:
 		}
 	}
 
+	/// Removes digits in random order as long as the solution stays unique.
+	///
+	/// A digit that cannot be removed now never can be later (fewer digits only
+	/// allow more solutions), so a single pass over all digits ends in a
+	/// minimal puzzle: none of its digits can be removed any more.
+	///
+	/// @param s_data A sudoku with a unique solution, minimized in place.
+	template<class rng>
+	static void minimize(sudoku_data_t & s_data, rng & gen) {
+		std::vector<sudoku_size_t> cells;
+		for (sudoku_size_t i = 0; i < tot_num_cells; ++i) {
+			if (s_data[i * n_stored_per_cell] > 0) cells.push_back(i);
+		}
+		std::ranges::shuffle(cells, gen);
+		for (const sudoku_size_t cell : cells) {
+			sudoku_data_t candidate = s_data;
+			candidate[cell * n_stored_per_cell] = 0;
+			auto_fill<square_height, square_width>(candidate, true);
+			sudoku_data_t candidate_copy = candidate;
+			if (Solver::solve_count_rec_depth(candidate_copy) >= 0) s_data = candidate;
+		}
+	}
+
 	/// Local search for harder puzzles: moves one clue to another cell and
 	/// keeps the change if the solution stays unique and the level does not
 	/// drop. Every puzzle above \p min_level that is reached is added to the
@@ -412,12 +435,23 @@ public:
 			auto_fill<square_height, square_width>(data, true);
 			sudoku_data_t data_copy = data;
 			if (Solver::solve_count_rec_depth(data_copy) < 0) continue; // Not unique
-			const rec_depth_t new_lvl = Solver::solve_min_rec_depth(data);
+			rec_depth_t new_lvl = Solver::solve_min_rec_depth(data);
 			if (new_lvl < lvl) continue;
 
-			s = cand;
+			// Only minimal puzzles are collected. Removing digits can change
+			// the level, the minimal puzzle is only used if it did not drop.
+			sudoku_data_t minimal = data;
+			minimize(minimal, gen);
+			const rec_depth_t minimal_lvl = Solver::solve_min_rec_depth(minimal);
+			const bool use_minimal = minimal_lvl >= new_lvl;
+			if (use_minimal) {
+				data = minimal;
+				new_lvl = minimal_lvl;
+			}
+
+			s = get_raw_sudoku<square_height, square_width>(data);
 			lvl = new_lvl;
-			if (lvl > min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
+			if (use_minimal && lvl > min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
 				const sud_char_t desc = generate_sud_char(s, lvl);
 				if (add_to_coll(sud_map, desc, s, s_sol)) {
 					std::cout << "Climbed to hard Sudoku, level: " << lvl << ", With ID: " << desc << "\n";
@@ -470,47 +504,32 @@ public:
 					remove_nth(sudoku, remove_ind);
 				}
 				auto_fill<square_height, square_width>(sudoku, true);
+
+				// The random removal above may already have lost uniqueness
 				sudoku_data_t sudoku_copy = sudoku;
+				if (Solver::solve_count_rec_depth(sudoku_copy) < 0) continue;
 
-				// Remove more, untill multiple solutions possible
-				sudoku_size_t n_curr = n_init;
-				bool unique_sol_exists = true;
-				while (unique_sol_exists) {
-
-					// Remove one digit
-					sudoku_size_t remove_ind = std::rand() % (tot_num_cells - n_curr);
-					remove_nth(sudoku, remove_ind);
-					auto_fill<square_height, square_width>(sudoku, true);
-					sudoku_copy = sudoku;
-					++n_curr;
-
-					// Try solving
-					rec_depth_t rec_dep = Solver::solve_count_rec_depth(sudoku_copy);
-					if (rec_dep >= 0) {
-						// The depth depends on which cell is guessed, so rate the
-						// puzzle by the shallowest search tree instead.
-						rec_dep = Solver::solve_min_rec_depth(sudoku);
-					}
-					if (rec_dep > min_level && rec_dep <= static_cast<rec_depth_t>(side_len)) {
-						const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
-						if (n_sud_w_lvl < max_suds_per_lvl) {
-							const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
-							const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
-							bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
-							if (added) {
-								std::cout << "Added hard Sudoku :D, level: " << rec_dep;
-								std::cout << ", With ID: " << desc << "\n";
-								lvl_count[rec_dep]++;
-							}
+				// Remove the remaining digits until the puzzle is minimal, and
+				// rate it. The depth depends on which cell is guessed, so use the
+				// shallowest search tree.
+				minimize(sudoku, gen);
+				const rec_depth_t rec_dep = Solver::solve_min_rec_depth(sudoku);
+				if (rec_dep > min_level && rec_dep <= static_cast<rec_depth_t>(side_len)) {
+					const num_sud_t n_sud_w_lvl = lvl_count[rec_dep];
+					if (n_sud_w_lvl < max_suds_per_lvl) {
+						const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
+						const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
+						bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
+						if (added) {
+							std::cout << "Added hard Sudoku :D, level: " << rec_dep;
+							std::cout << ", With ID: " << desc << "\n";
+							lvl_count[rec_dep]++;
 						}
 					}
-					if (rec_dep < 0) {
-						unique_sol_exists = false;
-					}
-					else if (climb_steps > 0 && rec_dep >= climb_from_level) {
-						climb(sud_map, lvl_count, max_suds_per_lvl, min_level,
-							get_raw_sudoku<square_height, square_width>(sudoku), raw_s_sol, rec_dep, climb_steps, gen);
-					}
+				}
+				if (climb_steps > 0 && rec_dep >= climb_from_level) {
+					climb(sud_map, lvl_count, max_suds_per_lvl, min_level,
+						get_raw_sudoku<square_height, square_width>(sudoku), raw_s_sol, rec_dep, climb_steps, gen);
 				}
 			}
 			if ((k + 1) % 200 == 0) {
