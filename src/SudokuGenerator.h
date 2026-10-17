@@ -371,38 +371,57 @@ public:
 		});
 		if (n_duplicates > 0) {
 			std::cout << "Warning: " << folder_path << " contains " << n_duplicates
-				<< " duplicate puzzles, they are only kept once (and removed from the file when it is saved).\n";
+				<< " duplicate puzzles, they are only kept once (and removed from the file when it is saved, or with --fix-duplicates).\n";
 		}
 		return sud_map;
 	}
 
-	/// Checks the file for puzzles that occur more than once and prints
-	/// the line numbers of the duplicates.
+	/// Removes puzzles that occur more than once from the file, keeping the
+	/// first occurrence of each. All other lines (also malformed ones) stay as
+	/// they are, in the same order. The file is only rewritten if there are
+	/// duplicates.
 	///
-	/// @return The number of duplicate lines (not counting the first
-	///   occurrence of each puzzle).
-	static size_t check_duplicates(std::string folder_path = "") {
+	/// @return The number of removed lines.
+	static size_t fix_duplicates(std::string folder_path = "") {
 		if (folder_path.empty()) folder_path = default_file_path();
 		if (!f_exists(folder_path)) {
 			std::cout << "File " << folder_path << " does not exist\n";
 			return 0;
 		}
 
+		std::vector<std::string> kept;
 		std::map<raw_sudoku_t, size_t> first_line;
 		size_t n_puzzles = 0;
 		size_t n_duplicates = 0;
-		for_each_line(folder_path, [&](size_t line_nr, const std::string &, const raw_sudoku_t & s, const raw_sudoku_t &) {
-			++n_puzzles;
-			const auto [pos, inserted] = first_line.emplace(s, line_nr);
-			if (!inserted) {
-				++n_duplicates;
-				if (n_duplicates <= 20) {
-					std::cout << "Line " << line_nr << " is a duplicate of line " << pos->second << "\n";
+		{
+			std::ifstream file(folder_path);
+			std::string str;
+			size_t line_nr = 0;
+			while (std::getline(file, str)) {
+				++line_nr;
+				const std::vector<std::string> sections = sudoku_detail::split(str, ';');
+				const std::optional<raw_sudoku_t> s = sections.size() == 3 ? string_to_sud(sections[1]) : std::nullopt;
+				if (s) {
+					++n_puzzles;
+					const auto [pos, inserted] = first_line.emplace(*s, line_nr);
+					if (!inserted) {
+						++n_duplicates;
+						if (n_duplicates <= 20) {
+							std::cout << "Removing line " << line_nr << ", a duplicate of line " << pos->second << "\n";
+						}
+						continue;
+					}
 				}
+				kept.push_back(str);
 			}
-		});
+		}
 		if (n_duplicates > 20) std::cout << "... and " << n_duplicates - 20 << " more\n";
-		std::cout << folder_path << ": " << n_puzzles << " puzzles, " << n_duplicates << " duplicates\n";
+
+		if (n_duplicates > 0) {
+			std::ofstream out(folder_path);
+			for (const std::string & line : kept) out << line << "\n";
+		}
+		std::cout << folder_path << ": " << n_puzzles << " puzzles, " << n_duplicates << " duplicates removed\n";
 		return n_duplicates;
 	}
 

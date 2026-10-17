@@ -96,7 +96,7 @@ interrupt it with `Ctrl+C` once you have enough.
 Every run uses a new random seed (printed at the start; pass `--seed` to repeat
 a run). Puzzles that are already in the collection are skipped, with a warning
 each time one is found (and a summary at the end), and puzzles that occur twice in the loaded file are only kept once
-(`--check-duplicates` lists them).
+(`--fix-duplicates` removes them from the file).
 The collection is saved every 200 iterations and again when `generate` is done,
 which then prints how many puzzles there are per level (in total and added in
 this run).
@@ -104,7 +104,7 @@ this run).
 ```
 $ ./generate --help
 Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--min-level L] [--iterations N] [--climb-steps N] [--seed S]
-                  [--output-path PATH] [--check-duplicates]
+                  [--output-path PATH] [--fix-duplicates]
 
   --square-height   Block height (default 3).
   --square-width    Block width (default 3).
@@ -121,8 +121,8 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
                     it is printed at the start). The same seed generates the
                     same puzzles, so use a different one for every run that
                     adds to the same file.
-  --check-duplicates  Only check the output file for puzzles that occur more than
-                    once, print them and exit (code 1 if there are any).
+  --fix-duplicates  Only remove puzzles that occur more than once from the output
+                    file (the first occurrence is kept) and exit.
   --output-path     File to load existing puzzles from and save to
                     (default ./Data/<square_height>x<square_width>/dat.txt).
                     Parent directories are created if missing.
