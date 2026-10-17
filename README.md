@@ -191,28 +191,8 @@ format still works for board sizes with more than 9 values per cell, like
 
 ### `generated_dat.txt`
 
-[`generated_dat.txt`](generated_dat.txt) is a pre-generated sample
-collection of 4360 hard 9x9 sudokus in the file format above, with the
-difficulty levels 1 to 5 (839, 1353, 1204, 888 and 76 puzzles). It is the
-union of two generator runs: 677 puzzles from a run with
-`./generate --min-level 1 --max-per-level 200 --climb-steps 2000`, and the
-puzzles of an earlier run (max. 1000 per level, before the generator
-collected only minimal puzzles) after minimizing each of them and re-rating
-the result (this changes the level of some, mostly raising it); duplicates were
-dropped. All puzzles are minimal (no digit can be removed without losing
-the unique solution) and come from 173 distinct solution grids. It isn't
-referenced anywhere in the code — it's just sample data — but
-`SudokuGenerator<3, 3>::load_coll("generated_dat.txt")` will load it
-correctly, and every entry has been verified: puzzle/solution lengths,
-the descriptor's digit-count and frequency fields matching the puzzle's
-actual contents, the solution agreeing with the puzzle's given cells, and
-every row/column/square of every solution being a valid 1-9 arrangement.
-
-(This file used to be called `example_data.txt` and predate the
-comma-delimited format above — space-delimited and fixed-width instead,
-one single-digit-assuming 12-character descriptor followed by each cell as
-a 2-character `"N "` token. It's been converted and renamed to match the
-current format and what it actually is.)
+[`generated_dat.txt`](generated_dat.txt) is a collection of some generated sudokus
+in the file format above.
 
 ### Board sizes
 
