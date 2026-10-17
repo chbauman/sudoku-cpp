@@ -123,11 +123,6 @@ guesses). The level is the depth of this search tree for the best choice of
 the guessed cell, among the cells with the fewest candidates. `0` means no
 guess is needed.
 
-The older `solve_count_rec_depth` only counts the depth along the path to the
-solution and always guesses in the same cell, so it depends on that
-arbitrary choice and overrates most puzzles (e.g. the file `generated_dat.txt`
-has puzzles of its level 6 that need a single guess).
-
 Random clue removal almost never produces puzzles of level 3 or more, so
 after finding a puzzle `generate` runs a local search (`--climb-steps`): it
 moves one clue to another cell and keeps the change if the solution stays
@@ -176,8 +171,8 @@ format still works for board sizes with more than 9 values per cell, like
 ### `generated_dat.txt`
 
 [`generated_dat.txt`](generated_dat.txt) is a pre-generated sample
-collection of 2908 hard 9x9 sudokus (difficulty levels 1 through 8 —
-mostly 1-3; level 8 appears once), in the file format above. It isn't
+collection of 2908 hard 9x9 sudokus (difficulty levels 1 and 2: 2818 and
+90 puzzles), in the file format above. It isn't
 referenced anywhere in the code — it's just sample data — but
 `SudokuGenerator<3, 3>::load_coll("generated_dat.txt")` will load it
 correctly, and every entry has been verified: puzzle/solution lengths,
