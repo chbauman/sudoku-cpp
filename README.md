@@ -100,10 +100,10 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
 
   --square-height   Block height (default 3).
   --square-width    Block width (default 3).
-  --max-per-level   Stop collecting puzzles for a difficulty level once
-                    this many have been found for it (default 1000).
-  --min-level       Minimum recursion-depth difficulty a puzzle must
-                    reach to be kept (default 3).
+  --max-per-level   Stop collecting puzzles for a difficulty level once the
+                    collection has this many for it, including the ones loaded
+                    from the output file (default 1000).
+  --min-level       Minimum difficulty level of the puzzles to keep (default 3).
   --iterations      Number of distinct fully-solved grids to try
                     generating puzzles from before stopping (default 50000).
   --climb-steps     Moves of the local search that tries to make each puzzle
@@ -179,7 +179,7 @@ format still works for board sizes with more than 9 values per cell, like
 
 [`generated_dat.txt`](generated_dat.txt) is a pre-generated sample
 collection of 677 hard 9x9 sudokus in the file format above. It was
-created with `./generate --min-level 0 --max-per-level 200 --climb-steps 2000`
+created with `./generate --min-level 1 --max-per-level 200 --climb-steps 2000`
 from an empty file, stopped after 400 of 2000 iterations: 200 puzzles each
 for levels 1-3, 73 for level 4 and 4 for level 5 (levels 4 and 5 are slow to
 find, run `generate` with `--output-path generated_dat.txt` for longer to

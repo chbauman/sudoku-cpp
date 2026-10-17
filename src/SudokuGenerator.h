@@ -408,7 +408,7 @@ public:
 
 	/// Local search for harder puzzles: moves one clue to another cell and
 	/// keeps the change if the solution stays unique and the level does not
-	/// drop. Every puzzle above \p min_level that is reached is added to the
+	/// drop. Every puzzle of at least \p min_level that is reached is added to the
 	/// collection.
 	///
 	/// Random clue removal almost never produces puzzles of the highest
@@ -451,7 +451,7 @@ public:
 
 			s = get_raw_sudoku<square_height, square_width>(data);
 			lvl = new_lvl;
-			if (use_minimal && lvl > min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
+			if (use_minimal && lvl >= min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
 				const sud_char_t desc = generate_sud_char(s, lvl);
 				if (add_to_coll(sud_map, desc, s, s_sol)) {
 					std::cout << "Climbed to hard Sudoku, level: " << lvl << ", With ID: " << desc << "\n";
@@ -465,9 +465,10 @@ public:
 	/// Generate hard Sudokus and save them to the disk.
 	///
 	/// @param max_suds_per_lvl Stop collecting more puzzles for a difficulty
-	///   level once this many have been found for it.
-	/// @param min_level Minimum recursion depth (difficulty) a puzzle must
-	///   reach to be kept.
+	///   level once there are this many for it in the collection, counting
+	///   those loaded from \p output_path (a loaded collection may already
+	///   have more, then nothing is added for that level).
+	/// @param min_level Minimum difficulty level a puzzle must have to be kept.
 	/// @param max_iterations Number of distinct fully-solved grids to try
 	///   generating puzzles from before stopping.
 	/// @param output_path File to load existing puzzles from and save to.
@@ -481,6 +482,14 @@ public:
 		// Initialize
 		std::array<num_sud_t, side_len + 1> lvl_count{};
 		sud_coll_t sud_map = load_coll(output_path);
+
+		// Puzzles that are already in the collection count towards the maximum
+		for (const auto & [desc, sas] : sud_map) {
+			const rec_depth_t lvl = std::stoi(desc.substr(0, desc.find(',')));
+			if (lvl >= 0 && lvl <= static_cast<rec_depth_t>(side_len)) {
+				lvl_count[lvl] += static_cast<num_sud_t>(sas.size());
+			}
+		}
 		std::mt19937 gen = std::mt19937(seed);
 
 		for (int k = 0; k < max_iterations; ++k) {
@@ -514,7 +523,7 @@ public:
 				// shallowest search tree.
 				minimize(sudoku, gen);
 				const rec_depth_t rec_dep = Solver::solve_min_rec_depth(sudoku);
-				if (rec_dep > min_level && rec_dep <= static_cast<rec_depth_t>(side_len)) {
+				if (rec_dep >= min_level && rec_dep <= static_cast<rec_depth_t>(side_len)) {
 					const num_sud_t n_sud_w_lvl = lvl_count[rec_dep];
 					if (n_sud_w_lvl < max_suds_per_lvl) {
 						const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
