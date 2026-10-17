@@ -171,8 +171,12 @@ format still works for board sizes with more than 9 values per cell, like
 ### `generated_dat.txt`
 
 [`generated_dat.txt`](generated_dat.txt) is a pre-generated sample
-collection of 2908 hard 9x9 sudokus (difficulty levels 1 and 2: 2818 and
-90 puzzles), in the file format above. It isn't
+collection of 4053 hard 9x9 sudokus, in the file format above. It was
+created with `./generate --min-level 0 --max-per-level 1000 --climb-steps 4000`
+from an empty file and has up to 1000 puzzles per difficulty level (1000
+each for levels 1-4, 53 for level 5; higher levels did not turn up). The
+puzzles of one level come from few distinct solution grids (82 in total),
+as the local search produces many variants of a puzzle. It isn't
 referenced anywhere in the code — it's just sample data — but
 `SudokuGenerator<3, 3>::load_coll("generated_dat.txt")` will load it
 correctly, and every entry has been verified: puzzle/solution lengths,
