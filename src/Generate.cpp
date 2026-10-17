@@ -5,6 +5,8 @@
 #include "SudokuGenerator.h"
 
 #include <iostream>
+#include <optional>
+#include <random>
 #include <string>
 
 namespace {
@@ -16,13 +18,16 @@ struct Args {
 	rec_depth_t min_level = 3;
 	int iterations = 50000;
 	int climb_steps = 2000;
+	std::optional<std::mt19937::result_type> seed;
+	bool check_duplicates = false;
 	std::string output_path;
 };
 
 void print_usage(const char * prog) {
 	std::cerr <<
 		"Usage: " << prog << " [--square-height H] [--square-width W]"
-		" [--max-per-level N] [--min-level L] [--iterations N] [--climb-steps N] [--output-path PATH]\n"
+		" [--max-per-level N] [--min-level L] [--iterations N] [--climb-steps N] [--seed S]\n"
+		"       [--output-path PATH] [--check-duplicates]\n"
 		"\n"
 		"  --square-height   Block height (default 3).\n"
 		"  --square-width    Block width (default 3).\n"
@@ -35,6 +40,12 @@ void print_usage(const char * prog) {
 		"  --climb-steps     Moves of the local search that tries to make each puzzle\n"
 		"                    of level 2 or more harder by moving one clue (default 2000,\n"
 		"                    0 disables it).\n"
+		"  --seed            Seed of the random number generator (default: random,\n"
+		"                    it is printed at the start). The same seed generates the\n"
+		"                    same puzzles, so use a different one for every run that\n"
+		"                    adds to the same file.\n"
+		"  --check-duplicates  Only check the output file for puzzles that occur more than\n"
+		"                    once, print them and exit (code 1 if there are any).\n"
 		"  --output-path     File to load existing puzzles from and save to\n"
 		"                    (default ./Data/<square_height>x<square_width>/dat.txt).\n"
 		"                    Parent directories are created if missing.\n"
@@ -63,6 +74,12 @@ bool parse_args(int argc, char** argv, Args & args) {
 		else if (a == "--climb-steps" && i + 1 < argc) {
 			args.climb_steps = std::stoi(argv[++i]);
 		}
+		else if (a == "--seed" && i + 1 < argc) {
+			args.seed = static_cast<std::mt19937::result_type>(std::stoul(argv[++i]));
+		}
+		else if (a == "--check-duplicates") {
+			args.check_duplicates = true;
+		}
 		else if (a == "--output-path" && i + 1 < argc) {
 			args.output_path = argv[++i];
 		}
@@ -79,7 +96,12 @@ bool parse_args(int argc, char** argv, Args & args) {
 
 template<sudoku_size_t sq_h, sudoku_size_t sq_w>
 int run(const Args & args) {
-	SudokuGenerator<sq_h, sq_w>::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps);
+	using Generator = SudokuGenerator<sq_h, sq_w>;
+	if (args.check_duplicates) {
+		return Generator::check_duplicates(args.output_path) > 0 ? 1 : 0;
+	}
+	Generator::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps, 1,
+		args.seed.value_or(std::random_device{}()));
 	return 0;
 }
 

@@ -3,7 +3,9 @@
 #include "SudokuCore.h"
 #include "SudokuSolver.h"
 
+#include <limits>
 #include <map>
+#include <set>
 #include <fstream>
 #include <iomanip>
 #include <filesystem>
@@ -220,29 +222,27 @@ public:
 		return res;
 	}
 
-	// Adds the sudoku 's' and its solution 's_sol' in raw form to the collection
-	// 'sud_map' if there are less than 'max_sud_per_key' sudokus already there.
-	static bool add_to_coll(sud_coll_t & sud_map, const sud_char_t & desc, const raw_sudoku_t s, const raw_sudoku_t s_sol, const num_sud_t max_sud_per_key = 100) {
+	/// Outcome of \ref add_to_coll.
+	enum class AddResult {
+		Added, ///< The puzzle was added.
+		Duplicate, ///< The identical puzzle is already in the collection.
+		Full, ///< There are already too many puzzles with this descriptor.
+	};
 
-		const sud_and_sol_t s_and_sol = std::make_pair(s, s_sol);
-		const auto pos = sud_map.find(desc);
-		if (pos == sud_map.end()) {
-			std::vector<sud_and_sol_t> val;
-			val.push_back(s_and_sol);
-			sud_map[desc] = val;
-			return true;
+	// Adds the sudoku 's' and its solution 's_sol' in raw form to the collection
+	// 'sud_map' if there are less than 'max_sud_per_key' sudokus already there
+	// and if the identical sudoku is not yet in the collection.
+	static AddResult add_to_coll(sud_coll_t & sud_map, const sud_char_t & desc, const raw_sudoku_t s, const raw_sudoku_t s_sol, const num_sud_t max_sud_per_key = 100) {
+
+		std::vector<sud_and_sol_t> & val = sud_map[desc];
+		for (const sud_and_sol_t & e : val) {
+			if (e.first == s) return AddResult::Duplicate;
 		}
-		else {
-			std::vector<sud_and_sol_t> & val = sud_map[desc];
-			if (val.size() > max_sud_per_key) {
-				return false;
-			}
-			else {
-				sud_map[desc].push_back(s_and_sol);
-				return true;
-			}
+		if (static_cast<num_sud_t>(val.size()) > max_sud_per_key) {
+			return AddResult::Full;
 		}
-		return false;
+		val.push_back(std::make_pair(s, s_sol));
+		return AddResult::Added;
 	}
 
 	/// Converts a raw sudoku to a space-separated string of its
@@ -315,7 +315,40 @@ public:
 		return f.good();
 	}
 
-	// Load the sudokus saved on disk into collection
+	/// Reads the file line by line and calls \p handle(line_number, desc, puzzle, solution)
+	/// for every well-formed line. Malformed lines are reported and skipped.
+	template<class Handler>
+	static void for_each_line(const std::string & file_path, Handler && handle) {
+		// Each line has 3 semicolon-separated sections: the descriptor
+		// generate_sud_char() produces, the puzzle, and its solution - the
+		// latter two in the same space-separated row format solve's command
+		// line accepts (see sud_to_string()), so either can be copied straight
+		// out of this file and pasted into solve.
+		std::ifstream file(file_path);
+		std::string str;
+		size_t line_nr = 0;
+		while (std::getline(file, str)) {
+			++line_nr;
+			const std::vector<std::string> sections = sudoku_detail::split(str, ';');
+			if (sections.size() != 3) {
+				std::cout << "Skipping malformed line " << line_nr << " (expected 3 ';'-separated sections, got "
+					<< sections.size() << ")\n";
+				continue;
+			}
+
+			const std::optional<raw_sudoku_t> s = string_to_sud(sections[1]);
+			const std::optional<raw_sudoku_t> s_sol = string_to_sud(sections[2]);
+			if (!s || !s_sol) {
+				std::cout << "Skipping malformed line " << line_nr << " (puzzle/solution doesn't have exactly "
+					<< side_len * side_len << " cells)\n";
+				continue;
+			}
+			handle(line_nr, sections[0], *s, *s_sol);
+		}
+	}
+
+	// Load the sudokus saved on disk into collection. Puzzles that occur
+	// several times are only loaded once, with a warning.
 	static sud_coll_t load_coll(std::string folder_path = "") {
 		if (folder_path.empty()) folder_path = default_file_path();
 		sud_coll_t sud_map;
@@ -326,37 +359,51 @@ public:
 			return sud_map;
 		}
 
-		// Read file linewise and extract info. Each line has 3
-		// semicolon-separated sections: the descriptor generate_sud_char()
-		// produces, the puzzle, and its solution - the latter two in the
-		// same space-separated row format solve's command line accepts
-		// (see sud_to_string()), so either can be copied straight out of
-		// this file and pasted into solve.
-		std::ifstream file(folder_path);
-		std::string str;
-		while (std::getline(file, str)) {
-			const std::vector<std::string> sections = sudoku_detail::split(str, ';');
-			if (sections.size() != 3) {
-				std::cout << "Skipping malformed line (expected 3 ';'-separated sections, got "
-					<< sections.size() << ")\n";
-				continue;
+		std::set<raw_sudoku_t> seen;
+		size_t n_duplicates = 0;
+		for_each_line(folder_path, [&](size_t, const std::string & desc, const raw_sudoku_t & s, const raw_sudoku_t & s_sol) {
+			if (!seen.insert(s).second) {
+				++n_duplicates;
+				return;
 			}
-
-			const std::string & desc = sections[0];
-			const std::optional<raw_sudoku_t> s = string_to_sud(sections[1]);
-			const std::optional<raw_sudoku_t> s_sol = string_to_sud(sections[2]);
-			if (!s || !s_sol) {
-				std::cout << "Skipping malformed line (puzzle/solution doesn't have exactly "
-					<< side_len * side_len << " cells)\n";
-				continue;
-			}
-
-			const bool tr = add_to_coll(sud_map, desc, *s, *s_sol);
-			if (tr == false) {
-				std::cout << "Fucking Error Ocurred!!!!!!!!!\n\n\n\n";
-			}
+			// The maximum per descriptor only applies to new puzzles
+			add_to_coll(sud_map, desc, s, s_sol, std::numeric_limits<num_sud_t>::max());
+		});
+		if (n_duplicates > 0) {
+			std::cout << "Warning: " << folder_path << " contains " << n_duplicates
+				<< " duplicate puzzles, they are only kept once (and removed from the file when it is saved).\n";
 		}
 		return sud_map;
+	}
+
+	/// Checks the file for puzzles that occur more than once and prints
+	/// the line numbers of the duplicates.
+	///
+	/// @return The number of duplicate lines (not counting the first
+	///   occurrence of each puzzle).
+	static size_t check_duplicates(std::string folder_path = "") {
+		if (folder_path.empty()) folder_path = default_file_path();
+		if (!f_exists(folder_path)) {
+			std::cout << "File " << folder_path << " does not exist\n";
+			return 0;
+		}
+
+		std::map<raw_sudoku_t, size_t> first_line;
+		size_t n_puzzles = 0;
+		size_t n_duplicates = 0;
+		for_each_line(folder_path, [&](size_t line_nr, const std::string &, const raw_sudoku_t & s, const raw_sudoku_t &) {
+			++n_puzzles;
+			const auto [pos, inserted] = first_line.emplace(s, line_nr);
+			if (!inserted) {
+				++n_duplicates;
+				if (n_duplicates <= 20) {
+					std::cout << "Line " << line_nr << " is a duplicate of line " << pos->second << "\n";
+				}
+			}
+		});
+		if (n_duplicates > 20) std::cout << "... and " << n_duplicates - 20 << " more\n";
+		std::cout << folder_path << ": " << n_puzzles << " puzzles, " << n_duplicates << " duplicates\n";
+		return n_duplicates;
 	}
 
 	// Separate Sudokus into separate maps by difficulty
@@ -421,7 +468,7 @@ public:
 	/// @param steps Number of moves to try.
 	/// @return The highest level reached.
 	template<class rng>
-	static rec_depth_t climb(sud_coll_t & sud_map, std::array<num_sud_t, side_len + 1> & lvl_count, const num_sud_t max_suds_per_lvl, const rec_depth_t min_level,
+	static rec_depth_t climb(sud_coll_t & sud_map, std::array<num_sud_t, side_len + 1> & lvl_count, num_sud_t & n_duplicates, const num_sud_t max_suds_per_lvl, const rec_depth_t min_level,
 			raw_sudoku_t s, const raw_sudoku_t & s_sol, rec_depth_t lvl, const int steps, rng & gen) {
 		std::uniform_int_distribution<sudoku_size_t> cell_dis(0, tot_num_cells - 1);
 		for (int step = 0; step < steps; ++step) {
@@ -454,7 +501,9 @@ public:
 			lvl = new_lvl;
 			if (use_minimal && lvl >= min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
 				const sud_char_t desc = generate_sud_char(s, lvl);
-				if (add_to_coll(sud_map, desc, s, s_sol)) {
+				const AddResult added = add_to_coll(sud_map, desc, s, s_sol);
+				if (added == AddResult::Duplicate) ++n_duplicates;
+				if (added == AddResult::Added) {
 					std::cout << "Climbed to hard Sudoku, level: " << lvl << ", With ID: " << desc << "\n";
 					lvl_count[lvl]++;
 				}
@@ -477,7 +526,10 @@ public:
 	/// @param climb_steps Moves of the local search started from each puzzle
 	///   of at least \p climb_from_level, see climb(). 0 disables it.
 	/// @param climb_from_level Minimum level of puzzles to climb from.
-	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 1) {
+	/// @param seed_value Seed of the random number generator. The same seed
+	///   (and parameters) generate the same puzzles, so use a different one
+	///   for every run that adds to the same file. Random by default.
+	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 1, const std::mt19937::result_type seed_value = std::random_device{}()) {
 		if (output_path.empty()) output_path = default_file_path();
 
 		// Initialize
@@ -492,7 +544,9 @@ public:
 			}
 		}
 		const std::array<num_sud_t, side_len + 1> lvl_count_loaded = lvl_count;
-		std::mt19937 gen = std::mt19937(seed);
+		std::mt19937 gen = std::mt19937(seed_value);
+		num_sud_t n_duplicates = 0;
+		std::cout << "Seed: " << seed_value << "\n";
 
 		for (int k = 0; k < max_iterations; ++k) {
 
@@ -511,7 +565,7 @@ public:
 				// hardcoded 45-of-81 ratio for the default 9x9 board.
 				const sudoku_size_t n_init = tot_num_cells * 5 / 9;
 				for (sudoku_size_t i = 0; i < n_init; ++i) {
-					sudoku_size_t remove_ind = std::rand() % (tot_num_cells - i);
+					const sudoku_size_t remove_ind = std::uniform_int_distribution<sudoku_size_t>(0, tot_num_cells - i - 1)(gen);
 					remove_nth(sudoku, remove_ind);
 				}
 				auto_fill<square_height, square_width>(sudoku, true);
@@ -530,8 +584,9 @@ public:
 					if (n_sud_w_lvl < max_suds_per_lvl) {
 						const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
 						const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
-						bool added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
-						if (added) {
+						const AddResult added = add_to_coll(sud_map, desc, raw_sud, raw_s_sol);
+						if (added == AddResult::Duplicate) ++n_duplicates;
+						if (added == AddResult::Added) {
 							std::cout << "Added hard Sudoku :D, level: " << rec_dep;
 							std::cout << ", With ID: " << desc << "\n";
 							lvl_count[rec_dep]++;
@@ -539,7 +594,7 @@ public:
 					}
 				}
 				if (climb_steps > 0 && rec_dep >= climb_from_level) {
-					climb(sud_map, lvl_count, max_suds_per_lvl, min_level,
+					climb(sud_map, lvl_count, n_duplicates, max_suds_per_lvl, min_level,
 						get_raw_sudoku<square_height, square_width>(sudoku), raw_s_sol, rec_dep, climb_steps, gen);
 				}
 			}
@@ -552,6 +607,10 @@ public:
 		// The periodic saving above misses the last iterations
 		save_coll(sud_map, output_path);
 		std::cout << "Finished! Saved to " << output_path << "\n";
+		if (n_duplicates > 0) {
+			std::cout << "Warning: " << n_duplicates << " generated puzzles were already in the collection and were skipped."
+				" Use a different --seed for every run that adds to the same file.\n";
+		}
 
 		// Frequency count: puzzles per level in the collection
 		std::cout << "Level | In collection | Added in this run\n";
