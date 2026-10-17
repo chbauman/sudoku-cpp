@@ -89,14 +89,14 @@ Usage: ./solve [--square-height H] [--square-width W] [--first-only | --count-al
 ./generate
 ```
 
-Generates sudoku puzzles, rates each by solving difficulty (recursion depth
-needed), and saves them to `./Data/<square_height>x<square_width>/dat.txt`
+Generates sudoku puzzles, rates each by solving difficulty (guessing depth
+needed, see [Difficulty level](#difficulty-level)), and saves them to `./Data/<square_height>x<square_width>/dat.txt`
 by default (override with `--output-path`). This can run for a long time —
 interrupt it with `Ctrl+C` once you have enough.
 
 ```
 $ ./generate --help
-Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--min-level L] [--iterations N] [--output-path PATH]
+Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--min-level L] [--iterations N] [--climb-steps N] [--output-path PATH]
 
   --square-height   Block height (default 3).
   --square-width    Block width (default 3).
@@ -106,10 +106,32 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
                     reach to be kept (default 3).
   --iterations      Number of distinct fully-solved grids to try
                     generating puzzles from before stopping (default 50000).
+  --climb-steps     Moves of the local search that tries to make each puzzle
+                    of level 1 or more harder by moving one clue (default 2000,
+                    0 disables it).
   --output-path     File to load existing puzzles from and save to
                     (default ./Data/<square_height>x<square_width>/dat.txt).
                     Parent directories are created if missing.
 ```
+
+### Difficulty level
+
+The level is the nesting depth of guesses that is needed (`solve_min_rec_depth`):
+after all deductions, a cell is guessed, and every one of its candidates has
+to be settled (either solved or refuted, which may itself need further
+guesses). The level is the depth of this search tree for the best choice of
+the guessed cell, among the cells with the fewest candidates. `0` means no
+guess is needed.
+
+The older `solve_count_rec_depth` only counts the depth along the path to the
+solution and always guesses in the same cell, so it depends on that
+arbitrary choice and overrates most puzzles (e.g. the file `generated_dat.txt`
+has puzzles of its level 6 that need a single guess).
+
+Random clue removal almost never produces puzzles of level 3 or more, so
+after finding a puzzle `generate` runs a local search (`--climb-steps`): it
+moves one clue to another cell and keeps the change if the solution stays
+unique and the level does not drop.
 
 ### Generated puzzle file format
 
@@ -133,8 +155,7 @@ above together with its solution:
 
 The descriptor section is comma-separated metadata, not meant to be used
 as puzzle input:
-- `2` — difficulty level (the minimum recursion depth `solve_count_rec_depth`
-  needed to solve it).
+- `2` — difficulty level, see [Difficulty level](#difficulty-level).
 - `22` — 22 cells were given in the puzzle.
 - `5,3,3,3,3,2,1,1,1` — how many times each digit occurs among those 22
   given cells, one count per digit 1-9, sorted in decreasing order.

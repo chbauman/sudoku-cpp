@@ -383,6 +383,51 @@ public:
 		}
 	}
 
+	/// Local search for harder puzzles: moves one clue to another cell and
+	/// keeps the change if the solution stays unique and the level does not
+	/// drop. Every puzzle above \p min_level that is reached is added to the
+	/// collection.
+	///
+	/// Random clue removal almost never produces puzzles of the highest
+	/// levels, but they are close to each other in this neighbourhood.
+	///
+	/// @param s The puzzle to start from.
+	/// @param s_sol Its solution.
+	/// @param lvl Its level.
+	/// @param steps Number of moves to try.
+	/// @return The highest level reached.
+	template<class rng>
+	static rec_depth_t climb(sud_coll_t & sud_map, std::array<num_sud_t, side_len + 1> & lvl_count, const num_sud_t max_suds_per_lvl, const rec_depth_t min_level,
+			raw_sudoku_t s, const raw_sudoku_t & s_sol, rec_depth_t lvl, const int steps, rng & gen) {
+		std::uniform_int_distribution<sudoku_size_t> cell_dis(0, tot_num_cells - 1);
+		for (int step = 0; step < steps; ++step) {
+			raw_sudoku_t cand = s;
+			sudoku_size_t rem = cell_dis(gen);
+			sudoku_size_t add = cell_dis(gen);
+			if (cand[rem] == 0 || cand[add] != 0) continue;
+			cand[rem] = 0;
+			cand[add] = s_sol[add];
+
+			sudoku_data_t data = init_sudoku_with_raw<square_height, square_width>(cand);
+			auto_fill<square_height, square_width>(data, true);
+			sudoku_data_t data_copy = data;
+			if (Solver::solve_count_rec_depth(data_copy) < 0) continue; // Not unique
+			const rec_depth_t new_lvl = Solver::solve_min_rec_depth(data);
+			if (new_lvl < lvl) continue;
+
+			s = cand;
+			lvl = new_lvl;
+			if (lvl > min_level && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl] < max_suds_per_lvl) {
+				const sud_char_t desc = generate_sud_char(s, lvl);
+				if (add_to_coll(sud_map, desc, s, s_sol)) {
+					std::cout << "Climbed to hard Sudoku, level: " << lvl << ", With ID: " << desc << "\n";
+					lvl_count[lvl]++;
+				}
+			}
+		}
+		return lvl;
+	}
+
 	/// Generate hard Sudokus and save them to the disk.
 	///
 	/// @param max_suds_per_lvl Stop collecting more puzzles for a difficulty
@@ -393,11 +438,14 @@ public:
 	///   generating puzzles from before stopping.
 	/// @param output_path File to load existing puzzles from and save to.
 	///   Defaults to default_file_path() (./Data/<H>x<W>/dat.txt) when empty.
-	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000, std::string output_path = "") {
+	/// @param climb_steps Moves of the local search started from each puzzle
+	///   of at least \p climb_from_level, see climb(). 0 disables it.
+	/// @param climb_from_level Minimum level of puzzles to climb from.
+	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 1) {
 		if (output_path.empty()) output_path = default_file_path();
 
 		// Initialize
-		std::array<sudoku_value_t, side_len> lvl_count{};
+		std::array<num_sud_t, side_len + 1> lvl_count{};
 		sud_coll_t sud_map = load_coll(output_path);
 		std::mt19937 gen = std::mt19937(seed);
 
@@ -438,7 +486,12 @@ public:
 
 					// Try solving
 					rec_depth_t rec_dep = Solver::solve_count_rec_depth(sudoku_copy);
-					if (rec_dep > min_level) {
+					if (rec_dep >= 0) {
+						// The depth depends on which cell is guessed, so rate the
+						// puzzle by the shallowest search tree instead.
+						rec_dep = Solver::solve_min_rec_depth(sudoku);
+					}
+					if (rec_dep > min_level && rec_dep <= static_cast<rec_depth_t>(side_len)) {
 						const sudoku_size_t n_sud_w_lvl = lvl_count[rec_dep];
 						if (n_sud_w_lvl < max_suds_per_lvl) {
 							const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
@@ -451,8 +504,12 @@ public:
 							}
 						}
 					}
-					else if (rec_dep < 0) {
+					if (rec_dep < 0) {
 						unique_sol_exists = false;
+					}
+					else if (climb_steps > 0 && rec_dep >= climb_from_level) {
+						climb(sud_map, lvl_count, max_suds_per_lvl, min_level,
+							get_raw_sudoku<square_height, square_width>(sudoku), raw_s_sol, rec_dep, climb_steps, gen);
 					}
 				}
 			}

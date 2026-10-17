@@ -3,6 +3,7 @@
 #include "SudokuCore.h"
 
 #include <numeric>
+#include <vector>
 
 /// Recursion depth returned by \ref SudokuSolver::solve_count_rec_depth.
 ///
@@ -915,6 +916,62 @@ public:
 			}
 		}
 		return false;
+	}
+
+	/// Returns the data indices (cell * n_stored_per_cell) of the empty cells
+	/// that have the fewest remaining candidates.
+	static std::vector<sudoku_size_t> least_uncertain_cells(const sudoku_data_t & s_data) {
+		std::vector<sudoku_size_t> cells;
+		sudoku_size_t min_poss = side_len + 1;
+		for (sudoku_size_t cell_ind = 0; cell_ind < side_len * side_len; ++cell_ind) {
+			const sudoku_size_t data_ind = cell_ind * n_stored_per_cell;
+			if (s_data[data_ind] > 0) continue;
+			sudoku_size_t n_poss = 0;
+			for (sudoku_size_t num = 0; num < side_len; ++num) {
+				if (s_data[data_ind + 1 + num] == 2) ++n_poss;
+			}
+			if (n_poss < min_poss) {
+				min_poss = n_poss;
+				cells.clear();
+			}
+			if (n_poss == min_poss) cells.push_back(data_ind);
+		}
+		return cells;
+	}
+
+	/// Guessing depth needed to settle a sudoku, minimised over the guessed cells.
+	///
+	/// \ref solve_count_rec_depth only counts the depth along the path to the
+	/// solution and always guesses in the first least uncertain cell, so it
+	/// ignores the effort of refuting the wrong guesses and depends on that
+	/// arbitrary choice. Here the level is the nesting depth of the whole
+	/// search tree: all candidates of a guessed cell have to be settled
+	/// (maximum over the candidates) and the cell is the one with the
+	/// shallowest tree among all cells tied for the fewest candidates
+	/// (minimum over the cells). A contradiction found by plain deduction
+	/// ends a branch at the current depth.
+	///
+	/// @param s_data The sudoku (left unchanged).
+	/// @param rec_dep Current depth (number of guesses made so far).
+	/// @param best Upper bound: branches that cannot get below it are cut off.
+	/// @return The depth, or \p best if it cannot be lowered below it.
+	static rec_depth_t solve_min_rec_depth(const sudoku_data_t & s_data, const rec_depth_t rec_dep = 0, const rec_depth_t best = 1000) {
+		sudoku_data_t work = s_data;
+		if (try_solving(work) == Invalid || solved(work)) return rec_dep;
+		if (rec_dep + 1 >= best) return best;
+
+		rec_depth_t curr_best = best;
+		for (const sudoku_size_t cell_picked : least_uncertain_cells(work)) {
+			rec_depth_t cell_depth = rec_dep + 1;
+			for (sudoku_size_t i = 0; i < side_len && cell_depth < curr_best; ++i) {
+				if (work[cell_picked + 1 + i] != 2) continue;
+				sudoku_data_t guess = work;
+				guess[cell_picked] = i + 1;
+				cell_depth = std::max(cell_depth, solve_min_rec_depth(guess, rec_dep + 1, curr_best));
+			}
+			curr_best = std::min(curr_best, cell_depth);
+		}
+		return curr_best;
 	}
 
 	// Find a solution and check if it is unique
