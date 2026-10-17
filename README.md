@@ -123,10 +123,17 @@ guesses). The level is the depth of this search tree for the best choice of
 the guessed cell, among the cells with the fewest candidates. `0` means no
 guess is needed.
 
+`generate` removes random digits from a solved grid and then tries to remove
+all remaining digits in random order, as long as the solution stays unique.
+A digit that cannot be removed at some point never can be later, so one pass
+ends in a *minimal* puzzle (no digit can be removed any more). Only minimal
+puzzles are collected.
+
 Random clue removal almost never produces puzzles of level 3 or more, so
 after finding a puzzle `generate` runs a local search (`--climb-steps`): it
 moves one clue to another cell and keeps the change if the solution stays
-unique and the level does not drop.
+unique and the level does not drop. The results are minimized again before
+they are collected.
 
 ### Generated puzzle file format
 
@@ -171,12 +178,13 @@ format still works for board sizes with more than 9 values per cell, like
 ### `generated_dat.txt`
 
 [`generated_dat.txt`](generated_dat.txt) is a pre-generated sample
-collection of 4053 hard 9x9 sudokus, in the file format above. It was
-created with `./generate --min-level 0 --max-per-level 1000 --climb-steps 4000`
-from an empty file and has up to 1000 puzzles per difficulty level (1000
-each for levels 1-4, 53 for level 5; higher levels did not turn up). The
-puzzles of one level come from few distinct solution grids (82 in total),
-as the local search produces many variants of a puzzle. It isn't
+collection of 677 hard 9x9 sudokus in the file format above. It was
+created with `./generate --min-level 0 --max-per-level 200 --climb-steps 2000`
+from an empty file, stopped after 400 of 2000 iterations: 200 puzzles each
+for levels 1-3, 73 for level 4 and 4 for level 5 (levels 4 and 5 are slow to
+find, run `generate` with `--output-path generated_dat.txt` for longer to
+add more). All puzzles are minimal (no digit can be removed without losing
+the unique solution) and come from 92 distinct solution grids. It isn't
 referenced anywhere in the code — it's just sample data — but
 `SudokuGenerator<3, 3>::load_coll("generated_dat.txt")` will load it
 correctly, and every entry has been verified: puzzle/solution lengths,
