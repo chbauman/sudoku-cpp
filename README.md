@@ -202,7 +202,8 @@ format still works for board sizes with more than 9 values per cell, like
 ### `generated_dat.txt`
 
 [`generated_dat.txt`](generated_dat.txt) is a collection of some generated sudokus
-in the file format above.
+in the file format above: 2010 puzzles for each of the levels -1 to 4 and
+the few very hard ones of levels 5 and 6.
 
 ### Board sizes
 
