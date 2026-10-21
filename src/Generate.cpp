@@ -15,7 +15,7 @@ struct Args {
 	sudoku_size_t square_height = 3;
 	sudoku_size_t square_width = 3;
 	num_sud_t max_per_level = 1000;
-	rec_depth_t min_level = 3;
+	rec_depth_t min_level = 4;
 	int iterations = 50000;
 	int climb_steps = 2000;
 	std::optional<std::mt19937::result_type> seed;
@@ -34,8 +34,7 @@ void print_usage(const char * prog) {
 		"  --max-per-level   Stop collecting puzzles for a difficulty level once the\n"
 		"                    collection has this many for it, including the ones loaded\n"
 		"                    from the output file (default 1000).\n"
-		"  --min-level       Minimum difficulty level of the puzzles to keep, -1 or more\n"
-		"                    (default 3). Level -1 puzzles are solved by the basic rules.\n"
+		"  --min-level       Minimum difficulty level of the puzzles to keep (default 4).\n"
 		"  --iterations      Number of distinct fully-solved grids to try\n"
 		"                    generating puzzles from before stopping (default 50000).\n"
 		"  --climb-steps     Moves of the local search that tries to make each puzzle\n"
@@ -102,7 +101,7 @@ int run(const Args & args) {
 		Generator::fix_duplicates(args.output_path);
 		return 0;
 	}
-	Generator::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps, 1,
+	Generator::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps, 2,
 		args.seed.value_or(std::random_device{}()));
 	return 0;
 }

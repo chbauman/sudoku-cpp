@@ -111,12 +111,11 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
   --max-per-level   Stop collecting puzzles for a difficulty level once the
                     collection has this many for it, including the ones loaded
                     from the output file (default 1000).
-  --min-level       Minimum difficulty level of the puzzles to keep, -1 or more
-                    (default 3). Level -1 puzzles are solved by the basic rules.
+  --min-level       Minimum difficulty level of the puzzles to keep (default 4).
   --iterations      Number of distinct fully-solved grids to try
                     generating puzzles from before stopping (default 50000).
   --climb-steps     Moves of the local search that tries to make each puzzle
-                    of level 1 or more harder by moving one clue (default 2000,
+                    of level 2 or more harder by moving one clue (default 2000,
                     0 disables it).
   --seed            Seed of the random number generator (default: random,
                     it is printed at the start). The same seed generates the
@@ -131,21 +130,22 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
 
 ### Difficulty level
 
-Level `-1` is the easiest: the puzzle can be solved completely with the basic
+Level `0` is the easiest: the puzzle can be solved completely with the basic
 rules only (`solvable_by_basic_rules`), which are placing a number that is the
 only one left for a cell, and a number that fits in only one cell of a row,
 column or square. Candidates are eliminated directly by the numbers that are
 already set in the row, column and square of a cell, without any of the other
 deductions.
 
-Otherwise, the level is the nesting depth of guesses that is needed (`solve_min_rec_depth`):
+Otherwise, the level is one more than the nesting depth of guesses that is needed
+(`solve_min_rec_depth`):
 after all deductions, a cell is guessed, and every one of its candidates has
 to be settled (either solved or refuted, which may itself need further
 guesses). The level is the depth of this search tree for the best choice of
-the guessed cell, among the cells with the fewest candidates. `0` means no
-guess is needed, but the basic rules are not enough (`rate_difficulty` gives the
-level). `generate` keeps puzzles of level 3 or more by default, use
-`--min-level -1` to collect the easiest ones too.
+the guessed cell, among the cells with the fewest candidates. Level `1` means
+that no guess is needed, but the basic rules are not enough (`rate_difficulty`
+gives the level). `generate` keeps puzzles of level 4 or more by default, use
+`--min-level 0` to collect the easiest ones too.
 
 `generate` removes random digits from a solved grid and then tries to remove
 all remaining digits in random order, as long as the solution stays unique.
@@ -153,7 +153,7 @@ A digit that cannot be removed at some point never can be later, so one pass
 ends in a *minimal* puzzle (no digit can be removed any more). Only minimal
 puzzles are collected.
 
-Random clue removal almost never produces puzzles of level 3 or more, so
+Random clue removal almost never produces puzzles of level 4 or more, so
 after finding a puzzle `generate` runs a local search (`--climb-steps`): it
 moves one clue to another cell and keeps the change if the solution stays
 unique and the level does not drop. The results are minimized again before
@@ -193,7 +193,7 @@ digit-frequency profile", not just "puzzles at this level".
 
 `separate_by_level_and_save()` (a library function on `SudokuGenerator`,
 not currently exposed by `generate`'s CLI) splits a loaded collection by
-level (-1 and up) into `./Data/<H>x<W>/ext_lvl_<N>.txt` files in the same format.
+level into `./Data/<H>x<W>/ext_lvl_<N>.txt` files in the same format.
 
 Both sections use delimiters (rather than fixed-width fields) so the
 format still works for board sizes with more than 9 values per cell, like
@@ -202,8 +202,8 @@ format still works for board sizes with more than 9 values per cell, like
 ### `generated_dat.txt`
 
 [`generated_dat.txt`](generated_dat.txt) is a collection of some generated sudokus
-in the file format above: 2010 puzzles for each of the levels -1 to 4 and
-the few very hard ones of levels 5 and 6.
+in the file format above: 2010 puzzles for each of the levels 0 to 5 and
+the few very hard ones of levels 6 and 7.
 
 ### Board sizes
 
