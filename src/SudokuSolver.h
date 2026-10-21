@@ -8,8 +8,8 @@
 /// Recursion depth returned by \ref SudokuSolver::solve_count_rec_depth.
 ///
 /// -3: Error occurred, -2: Invalid, -1: Multiple, 0: Unique (no recursion
-/// needed), n > 0: Unique, min. rec. depth n. \ref SudokuSolver::rate_difficulty
-/// returns -1 for a puzzle solvable by the basic rules (a level, not "Multiple").
+/// needed), n > 0: Unique, min. rec. depth n. (The difficulty level of
+/// \ref SudokuSolver::rate_difficulty is a different number, never negative.)
 typedef int rec_depth_t;
 
 /// Status for intermediate solver.
@@ -969,11 +969,11 @@ public:
 		return try_solving_basic(work) != Invalid && solved(work);
 	}
 
-	/// Difficulty level of a sudoku: -1 if \ref solvable_by_basic_rules, else
-	/// the guessing depth \ref solve_min_rec_depth (0 = solvable without
-	/// guessing, but needs more than the basic rules).
+	/// Difficulty level of a sudoku: 0 if \ref solvable_by_basic_rules, else
+	/// the guessing depth \ref solve_min_rec_depth plus one (so 1 = solvable
+	/// without guessing, but needs more than the basic rules).
 	static rec_depth_t rate_difficulty(const sudoku_data_t & s_data) {
-		return solvable_by_basic_rules(s_data) ? -1 : solve_min_rec_depth(s_data);
+		return solvable_by_basic_rules(s_data) ? 0 : solve_min_rec_depth(s_data) + 1;
 	}
 
 	/// Guessing depth needed to settle a sudoku, minimised over the guessed cells.

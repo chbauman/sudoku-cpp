@@ -142,11 +142,11 @@ public:
 	using sud_and_sol_t = std::pair<raw_sudoku_t, raw_sudoku_t>;
 	using sud_coll_t = std::map<sud_char_t, std::vector<sud_and_sol_t> >;
 
-	/// Lowest difficulty level (solvable by the basic rules only, see
-	/// SudokuSolver::rate_difficulty). The levels go up to side_len.
-	static constexpr rec_depth_t min_lvl = -1;
-	/// Number of puzzles per level, index: level - min_lvl.
-	using lvl_count_t = std::array<num_sud_t, side_len + 1 - min_lvl>;
+	/// Highest difficulty level (see SudokuSolver::rate_difficulty), puzzles of
+	/// a higher level are not collected.
+	static constexpr rec_depth_t max_level = side_len + 1;
+	/// Number of puzzles per level, index: level.
+	using lvl_count_t = std::array<num_sud_t, max_level + 1>;
 
 	// Counts the number that is currently set in the given sudoku
 	static sudoku_size_t count_num_known_numbers(const sudoku_data_t & s_data) {
@@ -434,8 +434,8 @@ public:
 	// Separate Sudokus into separate maps by difficulty
 	static void separate_by_level_and_save(const sud_coll_t & sud_map) {
 
-		const rec_depth_t max_lvl = 9;
-		std::array<sud_coll_t, max_lvl + 1> lvl_sep_map; // index: level + 1
+		const rec_depth_t max_lvl = 10;
+		std::array<sud_coll_t, max_lvl> lvl_sep_map;
 
 		for (auto& x : sud_map)
 		{
@@ -445,14 +445,14 @@ public:
 			const rec_depth_t lvl = std::stoi(desc.substr(0, desc.find(',')));
 
 			// Add to collection, skipping levels this fixed-size bucket array can't hold
-			if (lvl < min_lvl || lvl >= max_lvl) continue;
-			lvl_sep_map[lvl - min_lvl][desc] = sas;
+			if (lvl < 0 || lvl >= max_lvl) continue;
+			lvl_sep_map[lvl][desc] = sas;
 		}
 
 		// Save to separate files
-		for (rec_depth_t i = min_lvl; i < max_lvl; ++i) {
+		for (rec_depth_t i = 0; i < max_lvl; ++i) {
 			std::string f_name = default_file_dir() + "ext_lvl_" + std::to_string(i) + ".txt";
-			save_coll(lvl_sep_map[i - min_lvl], f_name);
+			save_coll(lvl_sep_map[i], f_name);
 		}
 	}
 
@@ -524,7 +524,7 @@ public:
 
 			s = get_raw_sudoku<square_height, square_width>(data);
 			lvl = new_lvl;
-			if (use_minimal && lvl >= std::max(min_level, min_lvl) && lvl <= static_cast<rec_depth_t>(side_len) && lvl_count[lvl - min_lvl] < max_suds_per_lvl) {
+			if (use_minimal && lvl >= min_level && lvl <= max_level && lvl_count[lvl] < max_suds_per_lvl) {
 				const sud_char_t desc = generate_sud_char(s, lvl);
 				const AddResult added = add_to_coll(sud_map, desc, s, s_sol);
 				if (added == AddResult::Duplicate) {
@@ -533,7 +533,7 @@ public:
 				}
 				if (added == AddResult::Added) {
 					std::cout << "Climbed to hard Sudoku, level: " << lvl << ", With ID: " << desc << "\n";
-					lvl_count[lvl - min_lvl]++;
+					lvl_count[lvl]++;
 				}
 			}
 		}
@@ -557,7 +557,7 @@ public:
 	/// @param seed_value Seed of the random number generator. The same seed
 	///   (and parameters) generate the same puzzles, so use a different one
 	///   for every run that adds to the same file. Random by default.
-	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 3, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 1, const std::mt19937::result_type seed_value = std::random_device{}()) {
+	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 4, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 2, const std::mt19937::result_type seed_value = std::random_device{}()) {
 		if (output_path.empty()) output_path = default_file_path();
 
 		// Initialize
@@ -567,8 +567,8 @@ public:
 		// Puzzles that are already in the collection count towards the maximum
 		for (const auto & [desc, sas] : sud_map) {
 			const rec_depth_t lvl = std::stoi(desc.substr(0, desc.find(',')));
-			if (lvl >= min_lvl && lvl <= static_cast<rec_depth_t>(side_len)) {
-				lvl_count[lvl - min_lvl] += static_cast<num_sud_t>(sas.size());
+			if (lvl >= 0 && lvl <= max_level) {
+				lvl_count[lvl] += static_cast<num_sud_t>(sas.size());
 			}
 		}
 		const lvl_count_t lvl_count_loaded = lvl_count;
@@ -607,8 +607,8 @@ public:
 				// shallowest search tree.
 				minimize(sudoku, gen);
 				const rec_depth_t rec_dep = Solver::rate_difficulty(sudoku);
-				if (rec_dep >= std::max(min_level, min_lvl) && rec_dep <= static_cast<rec_depth_t>(side_len)) {
-					const num_sud_t n_sud_w_lvl = lvl_count[rec_dep - min_lvl];
+				if (rec_dep >= min_level && rec_dep <= max_level) {
+					const num_sud_t n_sud_w_lvl = lvl_count[rec_dep];
 					if (n_sud_w_lvl < max_suds_per_lvl) {
 						const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
 						const sud_char_t desc = generate_sud_char(raw_sud, rec_dep);
@@ -620,7 +620,7 @@ public:
 						if (added == AddResult::Added) {
 							std::cout << "Added hard Sudoku :D, level: " << rec_dep;
 							std::cout << ", With ID: " << desc << "\n";
-							lvl_count[rec_dep - min_lvl]++;
+							lvl_count[rec_dep]++;
 						}
 					}
 				}
@@ -647,11 +647,11 @@ public:
 		std::cout << "Level | In collection | Added in this run\n";
 		num_sud_t tot_in_coll = 0;
 		num_sud_t tot_added = 0;
-		for (rec_depth_t lvl = min_lvl; lvl <= static_cast<rec_depth_t>(side_len); ++lvl) {
-			if (lvl_count[lvl - min_lvl] == 0) continue;
-			const num_sud_t added = lvl_count[lvl - min_lvl] - lvl_count_loaded[lvl - min_lvl];
-			std::cout << std::setw(5) << lvl << " | " << std::setw(13) << lvl_count[lvl - min_lvl] << " | " << std::setw(17) << added << "\n";
-			tot_in_coll += lvl_count[lvl - min_lvl];
+		for (rec_depth_t lvl = 0; lvl <= max_level; ++lvl) {
+			if (lvl_count[lvl] == 0) continue;
+			const num_sud_t added = lvl_count[lvl] - lvl_count_loaded[lvl];
+			std::cout << std::setw(5) << lvl << " | " << std::setw(13) << lvl_count[lvl] << " | " << std::setw(17) << added << "\n";
+			tot_in_coll += lvl_count[lvl];
 			tot_added += added;
 		}
 		std::cout << "Total | " << std::setw(13) << tot_in_coll << " | " << std::setw(17) << tot_added << "\n";
