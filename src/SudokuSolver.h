@@ -8,7 +8,8 @@
 /// Recursion depth returned by \ref SudokuSolver::solve_count_rec_depth.
 ///
 /// -3: Error occurred, -2: Invalid, -1: Multiple, 0: Unique (no recursion
-/// needed), n > 0: Unique, min. rec. depth n.
+/// needed), n > 0: Unique, min. rec. depth n. \ref SudokuSolver::rate_difficulty
+/// returns -1 for a puzzle solvable by the basic rules (a level, not "Multiple").
 typedef int rec_depth_t;
 
 /// Status for intermediate solver.
@@ -675,6 +676,27 @@ public:
 		return found_something;
 	}
 
+	/// Solves with the simplest deductions only: a cell with only one candidate,
+	/// and a number that fits in only one cell of a row, column or square. The
+	/// candidates are eliminated directly by the numbers that are set in the
+	/// row, column and square of a cell, none of the other eliminations of
+	/// \ref try_solving is used.
+	template<bool printDebugInfo = printDebugInfodefault>
+	static SolveStepRes try_solving_basic(sudoku_data_t & s_data) {
+
+		SolveStepRes found_something = ValidNewFound;
+
+		while (found_something == ValidNewFound) {
+			found_something = ValidnNoChange;
+			found_something = update(found_something, find_unique_in_rcs<printDebugInfo>(s_data));
+			found_something = update(found_something, find_unique_in_square<printDebugInfo>(s_data));
+			found_something = update(found_something, find_single_number_cell<printDebugInfo>(s_data));
+
+			auto_fill<square_height, square_width, printDebugInfo>(s_data, false);
+		}
+		return found_something;
+	}
+
 	// Check if sudoku is solved
 	static bool solved(sudoku_data_t & s_data) {
 		// Check if there is a number set in every cell
@@ -937,6 +959,21 @@ public:
 			if (n_poss == min_poss) cells.push_back(data_ind);
 		}
 		return cells;
+	}
+
+	/// Whether a sudoku can be solved completely by \ref try_solving_basic.
+	///
+	/// @param s_data The sudoku with its candidates set (left unchanged).
+	static bool solvable_by_basic_rules(const sudoku_data_t & s_data) {
+		sudoku_data_t work = s_data;
+		return try_solving_basic(work) != Invalid && solved(work);
+	}
+
+	/// Difficulty level of a sudoku: -1 if \ref solvable_by_basic_rules, else
+	/// the guessing depth \ref solve_min_rec_depth (0 = solvable without
+	/// guessing, but needs more than the basic rules).
+	static rec_depth_t rate_difficulty(const sudoku_data_t & s_data) {
+		return solvable_by_basic_rules(s_data) ? -1 : solve_min_rec_depth(s_data);
 	}
 
 	/// Guessing depth needed to settle a sudoku, minimised over the guessed cells.
