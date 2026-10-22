@@ -144,7 +144,7 @@ public:
 
 	/// Highest difficulty level (see SudokuSolver::rate_difficulty), puzzles of
 	/// a higher level are not collected.
-	static constexpr rec_depth_t max_level = side_len + 1;
+	static constexpr rec_depth_t max_level = side_len + 2;
 	/// Number of puzzles per level, index: level.
 	using lvl_count_t = std::array<num_sud_t, max_level + 1>;
 
@@ -434,7 +434,7 @@ public:
 	// Separate Sudokus into separate maps by difficulty
 	static void separate_by_level_and_save(const sud_coll_t & sud_map) {
 
-		const rec_depth_t max_lvl = 10;
+		const rec_depth_t max_lvl = max_level + 1;
 		std::array<sud_coll_t, max_lvl> lvl_sep_map;
 
 		for (auto& x : sud_map)
@@ -547,6 +547,8 @@ public:
 	///   those loaded from \p output_path (a loaded collection may already
 	///   have more, then nothing is added for that level).
 	/// @param min_level Minimum difficulty level a puzzle must have to be kept.
+	/// @param max_rated_level Puzzles above this level are discarded. They are not
+	///   rated exactly, which makes generating the easy levels much faster.
 	/// @param max_iterations Number of distinct fully-solved grids to try
 	///   generating puzzles from before stopping.
 	/// @param output_path File to load existing puzzles from and save to.
@@ -557,7 +559,7 @@ public:
 	/// @param seed_value Seed of the random number generator. The same seed
 	///   (and parameters) generate the same puzzles, so use a different one
 	///   for every run that adds to the same file. Random by default.
-	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 4, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 2, const std::mt19937::result_type seed_value = std::random_device{}()) {
+	static void generate_hard_sudokus(const num_sud_t max_suds_per_lvl = 1000, const rec_depth_t min_level = 5, const int max_iterations = 50000, std::string output_path = "", const int climb_steps = 2000, const rec_depth_t climb_from_level = 3, const std::mt19937::result_type seed_value = std::random_device{}(), const rec_depth_t max_rated_level = max_level) {
 		if (output_path.empty()) output_path = default_file_path();
 
 		// Initialize
@@ -606,8 +608,8 @@ public:
 				// rate it. The depth depends on which cell is guessed, so use the
 				// shallowest search tree.
 				minimize(sudoku, gen);
-				const rec_depth_t rec_dep = Solver::rate_difficulty(sudoku);
-				if (rec_dep >= min_level && rec_dep <= max_level) {
+				const rec_depth_t rec_dep = Solver::rate_difficulty(sudoku, max_rated_level);
+				if (rec_dep >= min_level && rec_dep <= max_rated_level && rec_dep <= max_level) {
 					const num_sud_t n_sud_w_lvl = lvl_count[rec_dep];
 					if (n_sud_w_lvl < max_suds_per_lvl) {
 						const raw_sudoku_t raw_sud = get_raw_sudoku<square_height, square_width>(sudoku);
@@ -624,7 +626,7 @@ public:
 						}
 					}
 				}
-				if (climb_steps > 0 && rec_dep >= climb_from_level) {
+				if (climb_steps > 0 && rec_dep >= climb_from_level && rec_dep <= max_rated_level) {
 					climb(sud_map, lvl_count, n_duplicates, max_suds_per_lvl, min_level,
 						get_raw_sudoku<square_height, square_width>(sudoku), raw_s_sol, rec_dep, climb_steps, gen);
 				}

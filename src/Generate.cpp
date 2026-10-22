@@ -15,7 +15,8 @@ struct Args {
 	sudoku_size_t square_height = 3;
 	sudoku_size_t square_width = 3;
 	num_sud_t max_per_level = 1000;
-	rec_depth_t min_level = 4;
+	rec_depth_t min_level = 5;
+	rec_depth_t max_level = 1000;
 	int iterations = 50000;
 	int climb_steps = 2000;
 	std::optional<std::mt19937::result_type> seed;
@@ -26,7 +27,7 @@ struct Args {
 void print_usage(const char * prog) {
 	std::cerr <<
 		"Usage: " << prog << " [--square-height H] [--square-width W]"
-		" [--max-per-level N] [--min-level L] [--iterations N] [--climb-steps N] [--seed S]\n"
+		" [--max-per-level N] [--min-level L] [--max-level L] [--iterations N] [--climb-steps N] [--seed S]\n"
 		"       [--output-path PATH] [--fix-duplicates]\n"
 		"\n"
 		"  --square-height   Block height (default 3).\n"
@@ -34,11 +35,14 @@ void print_usage(const char * prog) {
 		"  --max-per-level   Stop collecting puzzles for a difficulty level once the\n"
 		"                    collection has this many for it, including the ones loaded\n"
 		"                    from the output file (default 1000).\n"
-		"  --min-level       Minimum difficulty level of the puzzles to keep (default 4).\n"
+		"  --min-level       Minimum difficulty level of the puzzles to keep (default 5).\n"
+		"  --max-level       Maximum difficulty level of the puzzles to keep (default: no limit).\n"
+		"                    Puzzles above it are not rated exactly, which makes generating\n"
+		"                    the easy levels much faster.\n"
 		"  --iterations      Number of distinct fully-solved grids to try\n"
 		"                    generating puzzles from before stopping (default 50000).\n"
 		"  --climb-steps     Moves of the local search that tries to make each puzzle\n"
-		"                    of level 2 or more harder by moving one clue (default 2000,\n"
+		"                    of level 3 or more harder by moving one clue (default 2000,\n"
 		"                    0 disables it).\n"
 		"  --seed            Seed of the random number generator (default: random,\n"
 		"                    it is printed at the start). The same seed generates the\n"
@@ -67,6 +71,9 @@ bool parse_args(int argc, char** argv, Args & args) {
 		}
 		else if (a == "--min-level" && i + 1 < argc) {
 			args.min_level = std::stoi(argv[++i]);
+		}
+		else if (a == "--max-level" && i + 1 < argc) {
+			args.max_level = std::stoi(argv[++i]);
 		}
 		else if (a == "--iterations" && i + 1 < argc) {
 			args.iterations = std::stoi(argv[++i]);
@@ -101,8 +108,8 @@ int run(const Args & args) {
 		Generator::fix_duplicates(args.output_path);
 		return 0;
 	}
-	Generator::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps, 2,
-		args.seed.value_or(std::random_device{}()));
+	Generator::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps, 3,
+		args.seed.value_or(std::random_device{}()), args.max_level);
 	return 0;
 }
 
