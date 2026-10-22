@@ -431,6 +431,59 @@ public:
 		return n_duplicates;
 	}
 
+	/// Deletes puzzles from the file until there are at most \p max_suds_per_lvl
+	/// of every difficulty level. The puzzles that are deleted are chosen at
+	/// random (the file is sorted by the descriptor, so deleting the last ones
+	/// would favour puzzles with few givens). All other lines (also malformed
+	/// ones) stay as they are, in the same order. The file is only rewritten if
+	/// puzzles are deleted.
+	///
+	/// @param max_suds_per_lvl Maximum number of puzzles per level.
+	/// @param seed_value Seed of the random choice.
+	/// @return The number of deleted lines.
+	static size_t enforce_max_per_level(const num_sud_t max_suds_per_lvl, const std::mt19937::result_type seed_value, std::string folder_path = "") {
+		if (folder_path.empty()) folder_path = default_file_path();
+		if (!f_exists(folder_path)) {
+			std::cout << "File " << folder_path << " does not exist\n";
+			return 0;
+		}
+
+		std::vector<std::string> lines;
+		std::map<rec_depth_t, std::vector<size_t>> lines_of_level;
+		{
+			std::ifstream file(folder_path);
+			std::string str;
+			while (std::getline(file, str)) {
+				const std::vector<std::string> sections = sudoku_detail::split(str, ';');
+				if (sections.size() == 3 && string_to_sud(sections[1])) {
+					lines_of_level[std::stoi(sections[0].substr(0, sections[0].find(',')))].push_back(lines.size());
+				}
+				lines.push_back(str);
+			}
+		}
+
+		std::mt19937 gen(seed_value);
+		std::vector<bool> deleted(lines.size(), false);
+		size_t n_deleted = 0;
+		for (auto & [lvl, indices] : lines_of_level) {
+			const size_t n = indices.size();
+			if (n > static_cast<size_t>(max_suds_per_lvl)) {
+				std::ranges::shuffle(indices, gen);
+				for (size_t i = static_cast<size_t>(max_suds_per_lvl); i < n; ++i) deleted[indices[i]] = true;
+				n_deleted += n - static_cast<size_t>(max_suds_per_lvl);
+			}
+			std::cout << "Level " << lvl << ": " << n << " puzzles" << (n > static_cast<size_t>(max_suds_per_lvl) ? ", deleted " + std::to_string(n - static_cast<size_t>(max_suds_per_lvl)) : "") << "\n";
+		}
+		if (n_deleted > 0) {
+			std::ofstream out(folder_path);
+			for (size_t i = 0; i < lines.size(); ++i) {
+				if (!deleted[i]) out << lines[i] << "\n";
+			}
+		}
+		std::cout << folder_path << ": " << n_deleted << " puzzles deleted\n";
+		return n_deleted;
+	}
+
 	// Separate Sudokus into separate maps by difficulty
 	static void separate_by_level_and_save(const sud_coll_t & sud_map) {
 
