@@ -144,11 +144,17 @@ the rules of level 0 and in addition a cell with only one candidate left, and a
 number that fits in only one cell of a row or column (instead of only a square).
 
 Otherwise, the level is two more than the nesting depth of guesses that is needed
-(`solve_min_rec_depth`):
-after all deductions, a cell is guessed, and every one of its candidates has
-to be settled (either solved or refuted, which may itself need further
-guesses). The level is the depth of this search tree for the best choice of
-the guessed cell, among the cells with the fewest candidates. Level `2` means
+(`solve_min_rec_depth`): after all deductions, the puzzle is split into cases
+(`least_uncertain_guesses`), by one of two kinds of guess:
+
+- a cell with n candidates: n cases, which number is in the cell,
+- a number that fits in n cells of a row, column or square, in which it is not
+  set yet: n cases, which cell has the number.
+
+Both kinds are considered and the smallest n is used (so there is at least one
+guess of it). Every case has to be settled (either solved or refuted, which may
+itself need further guesses). The level is the depth of this search tree for the
+best guess among all the guesses with the smallest n. Level `2` means
 that no guess is needed, but the basic rules are not enough (`rate_difficulty`
 gives the level). `generate` keeps puzzles of level 5 or more by default, use
 `--min-level 0` to collect the easiest ones too (with `--max-level 1` this is
@@ -209,8 +215,8 @@ format still works for board sizes with more than 9 values per cell, like
 ### `generated_dat.txt`
 
 [`generated_dat.txt`](generated_dat.txt) is a collection of some generated sudokus
-in the file format above: 2010 puzzles for each of the levels 0 to 6 and
-the few very hard ones of levels 7 and 8.
+in the file format above: 2010 puzzles for each of the levels 0 to 2, and
+2607, 3435, 2074, 157 and 8 puzzles of the levels 3 to 7.
 
 ### Board sizes
 
