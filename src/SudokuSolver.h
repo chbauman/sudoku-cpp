@@ -263,6 +263,56 @@ public:
 		}
 	}
 
+	/// Fills in the last empty cell of a row or column with the number that is
+	/// still missing there.
+	template<bool printDebugInfo = printDebugInfodefault>
+	static SolveStepRes find_last_in_row_col(sudoku_data_t & s_data) {
+
+		bool found_number = false;
+
+		// Lines 0 to side_len - 1 are the rows, the others the columns
+		for (sudoku_size_t line = 0; line < 2 * side_len; ++line) {
+			const bool is_row = line < side_len;
+			const sudoku_size_t line_ind = line % side_len;
+
+			sudoku_size_t num_empty = 0;
+			sudoku_size_t empty_data_ind = 0;
+			std::vector<bool> used(side_len + 1, false);
+			for (sudoku_size_t i = 0; i < side_len; ++i) {
+				const sudoku_size_t cell_ind = is_row ? line_ind * side_len + i : i * side_len + line_ind;
+				const sudoku_size_t data_ind = cell_ind * n_stored_per_cell;
+				const sudoku_size_t val = s_data[data_ind];
+				if (val == 0) {
+					++num_empty;
+					empty_data_ind = data_ind;
+				}
+				else if (used[val]) {
+					return Invalid;
+				}
+				else {
+					used[val] = true;
+				}
+			}
+			if (num_empty != 1) continue;
+
+			for (sudoku_size_t num = 1; num <= side_len; ++num) {
+				if (used[num]) continue;
+				s_data[empty_data_ind] = num;
+				found_number = true;
+				if constexpr (printDebugInfo) {
+					std::cout << "Found the last number " << num << " in " << (is_row ? "row " : "col ") << line_ind + 1 << ".\n";
+				}
+				break;
+			}
+		}
+		if (found_number) {
+			return ValidNewFound;
+		}
+		else {
+			return ValidnNoChange;
+		}
+	}
+
 	/// Looks for cells where only one number can be.
 	template<bool printDebugInfo = printDebugInfodefault>
 	static SolveStepRes find_single_number_cell(sudoku_data_t & s_data) {
@@ -697,6 +747,25 @@ public:
 		return found_something;
 	}
 
+	/// Solves with the very simplest deductions only: a number that fits in only
+	/// one cell of a square, and the last empty cell of a row or column. The
+	/// candidates are eliminated directly by the numbers that are set in the row,
+	/// column and square of a cell.
+	template<bool printDebugInfo = printDebugInfodefault>
+	static SolveStepRes try_solving_easiest(sudoku_data_t & s_data) {
+
+		SolveStepRes found_something = ValidNewFound;
+
+		while (found_something == ValidNewFound) {
+			found_something = ValidnNoChange;
+			found_something = update(found_something, find_unique_in_square<printDebugInfo>(s_data));
+			found_something = update(found_something, find_last_in_row_col<printDebugInfo>(s_data));
+
+			auto_fill<square_height, square_width, printDebugInfo>(s_data, false);
+		}
+		return found_something;
+	}
+
 	// Check if sudoku is solved
 	static bool solved(sudoku_data_t & s_data) {
 		// Check if there is a number set in every cell
@@ -961,6 +1030,14 @@ public:
 		return cells;
 	}
 
+	/// Whether a sudoku can be solved completely by \ref try_solving_easiest.
+	///
+	/// @param s_data The sudoku with its candidates set (left unchanged).
+	static bool solvable_by_easiest_rules(const sudoku_data_t & s_data) {
+		sudoku_data_t work = s_data;
+		return try_solving_easiest(work) != Invalid && solved(work);
+	}
+
 	/// Whether a sudoku can be solved completely by \ref try_solving_basic.
 	///
 	/// @param s_data The sudoku with its candidates set (left unchanged).
@@ -969,11 +1046,21 @@ public:
 		return try_solving_basic(work) != Invalid && solved(work);
 	}
 
-	/// Difficulty level of a sudoku: 0 if \ref solvable_by_basic_rules, else
-	/// the guessing depth \ref solve_min_rec_depth plus one (so 1 = solvable
-	/// without guessing, but needs more than the basic rules).
-	static rec_depth_t rate_difficulty(const sudoku_data_t & s_data) {
-		return solvable_by_basic_rules(s_data) ? 0 : solve_min_rec_depth(s_data) + 1;
+	/// Difficulty level of a sudoku: 0 if \ref solvable_by_easiest_rules, 1 if
+	/// \ref solvable_by_basic_rules, else the guessing depth
+	/// \ref solve_min_rec_depth plus two (so 2 = solvable without guessing, but
+	/// needs more than the basic rules).
+	///
+	/// @param s_data The sudoku with its candidates set (left unchanged).
+	/// @param max_level The search for the guessing depth is cut off above this
+	///   level, then \p max_level + 1 is returned (the exact level is not needed).
+	static rec_depth_t rate_difficulty(const sudoku_data_t & s_data, const rec_depth_t max_level = 1000) {
+		if (solvable_by_easiest_rules(s_data)) return 0;
+		if (solvable_by_basic_rules(s_data)) return 1;
+		if (max_level < 2) return max_level + 1;
+		const rec_depth_t depth_cap = max_level - 1;
+		const rec_depth_t depth = solve_min_rec_depth(s_data, 0, depth_cap);
+		return depth < depth_cap ? depth + 2 : max_level + 1;
 	}
 
 	/// Guessing depth needed to settle a sudoku, minimised over the guessed cells.
