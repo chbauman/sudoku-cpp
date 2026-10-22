@@ -104,7 +104,7 @@ this run).
 ```
 $ ./generate --help
 Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--min-level L] [--max-level L] [--iterations N] [--climb-steps N] [--seed S]
-                  [--output-path PATH] [--fix-duplicates]
+                  [--output-path PATH] [--fix-duplicates] [--enforce-max-per-level]
 
   --square-height   Block height (default 3).
   --square-width    Block width (default 3).
@@ -126,6 +126,10 @@ Usage: ./generate [--square-height H] [--square-width W] [--max-per-level N] [--
                     adds to the same file.
   --fix-duplicates  Only remove puzzles that occur more than once from the output
                     file (the first occurrence is kept) and exit.
+  --enforce-max-per-level
+                    Only delete puzzles from the output file until there are at
+                    most --max-per-level of every difficulty level, and exit. The
+                    puzzles to delete are chosen at random (see --seed).
   --output-path     File to load existing puzzles from and save to
                     (default ./Data/<square_height>x<square_width>/dat.txt).
                     Parent directories are created if missing.

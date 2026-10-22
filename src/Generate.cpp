@@ -21,6 +21,7 @@ struct Args {
 	int climb_steps = 2000;
 	std::optional<std::mt19937::result_type> seed;
 	bool fix_duplicates = false;
+	bool enforce_max_per_level = false;
 	std::string output_path;
 };
 
@@ -28,7 +29,7 @@ void print_usage(const char * prog) {
 	std::cerr <<
 		"Usage: " << prog << " [--square-height H] [--square-width W]"
 		" [--max-per-level N] [--min-level L] [--max-level L] [--iterations N] [--climb-steps N] [--seed S]\n"
-		"       [--output-path PATH] [--fix-duplicates]\n"
+		"       [--output-path PATH] [--fix-duplicates] [--enforce-max-per-level]\n"
 		"\n"
 		"  --square-height   Block height (default 3).\n"
 		"  --square-width    Block width (default 3).\n"
@@ -50,6 +51,10 @@ void print_usage(const char * prog) {
 		"                    adds to the same file.\n"
 		"  --fix-duplicates  Only remove puzzles that occur more than once from the output\n"
 		"                    file (the first occurrence is kept) and exit.\n"
+		"  --enforce-max-per-level\n"
+		"                    Only delete puzzles from the output file until there are at\n"
+		"                    most --max-per-level of every difficulty level, and exit. The\n"
+		"                    puzzles to delete are chosen at random (see --seed).\n"
 		"  --output-path     File to load existing puzzles from and save to\n"
 		"                    (default ./Data/<square_height>x<square_width>/dat.txt).\n"
 		"                    Parent directories are created if missing.\n"
@@ -87,6 +92,9 @@ bool parse_args(int argc, char** argv, Args & args) {
 		else if (a == "--fix-duplicates") {
 			args.fix_duplicates = true;
 		}
+		else if (a == "--enforce-max-per-level") {
+			args.enforce_max_per_level = true;
+		}
 		else if (a == "--output-path" && i + 1 < argc) {
 			args.output_path = argv[++i];
 		}
@@ -106,6 +114,12 @@ int run(const Args & args) {
 	using Generator = SudokuGenerator<sq_h, sq_w>;
 	if (args.fix_duplicates) {
 		Generator::fix_duplicates(args.output_path);
+		return 0;
+	}
+	if (args.enforce_max_per_level) {
+		const auto seed = args.seed.value_or(std::random_device{}());
+		std::cout << "Seed: " << seed << "\n";
+		Generator::enforce_max_per_level(args.max_per_level, seed, args.output_path);
 		return 0;
 	}
 	Generator::generate_hard_sudokus(args.max_per_level, args.min_level, args.iterations, args.output_path, args.climb_steps, 3,
