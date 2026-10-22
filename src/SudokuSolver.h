@@ -2,7 +2,10 @@
 
 #include "SudokuCore.h"
 
+#include <algorithm>
+#include <array>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 /// Recursion depth returned by \ref SudokuSolver::solve_count_rec_depth.
@@ -1009,25 +1012,75 @@ public:
 		return false;
 	}
 
-	/// Returns the data indices (cell * n_stored_per_cell) of the empty cells
-	/// that have the fewest remaining candidates.
-	static std::vector<sudoku_size_t> least_uncertain_cells(const sudoku_data_t & s_data) {
-		std::vector<sudoku_size_t> cells;
-		sudoku_size_t min_poss = side_len + 1;
+	/// A way to split the possible solutions into cases: one of the placements
+	/// (data index of a cell, number 1..side_len) has to be right.
+	typedef std::vector<std::pair<sudoku_size_t, sudoku_size_t>> guess_cases_t;
+
+	/// All the ways to split the sudoku into the fewest cases, each of them is
+	/// complete (one of its placements is part of every solution):
+	/// - an empty cell with n candidates (n cases: which number is in the cell),
+	/// - a number that fits in n cells of a row, column or square, in which it
+	///   is not set yet (n cases: which cell has the number).
+	/// Only the ways with the smallest n are returned, without duplicates (the
+	/// cells of a number in a row can be all the cells of it in a square too).
+	///
+	/// @param s_data The sudoku with its candidates set.
+	static std::vector<guess_cases_t> least_uncertain_guesses(const sudoku_data_t & s_data) {
+		std::vector<guess_cases_t> guesses;
+		sudoku_size_t min_n = side_len + 1;
+		const auto add = [&](guess_cases_t cases) {
+			if (cases.size() > min_n) return;
+			if (cases.size() < min_n) {
+				min_n = static_cast<sudoku_size_t>(cases.size());
+				guesses.clear();
+			}
+			std::ranges::sort(cases);
+			if (std::ranges::find(guesses, cases) == guesses.end()) guesses.push_back(std::move(cases));
+		};
+
+		// Cells with n candidates
 		for (sudoku_size_t cell_ind = 0; cell_ind < side_len * side_len; ++cell_ind) {
 			const sudoku_size_t data_ind = cell_ind * n_stored_per_cell;
 			if (s_data[data_ind] > 0) continue;
-			sudoku_size_t n_poss = 0;
+			guess_cases_t cases;
 			for (sudoku_size_t num = 0; num < side_len; ++num) {
-				if (s_data[data_ind + 1 + num] == 2) ++n_poss;
+				if (s_data[data_ind + 1 + num] == 2) cases.emplace_back(data_ind, num + 1);
 			}
-			if (n_poss < min_poss) {
-				min_poss = n_poss;
-				cells.clear();
-			}
-			if (n_poss == min_poss) cells.push_back(data_ind);
+			add(std::move(cases));
 		}
-		return cells;
+
+		// Numbers that fit in n cells of a row, column or square (the units
+		// 0 to side_len - 1 are the rows, then the columns, then the squares)
+		for (sudoku_size_t unit = 0; unit < 3 * side_len; ++unit) {
+			const sudoku_size_t kind = unit / side_len;
+			const sudoku_size_t unit_ind = unit % side_len;
+			std::array<sudoku_size_t, side_len> cells;
+			for (sudoku_size_t i = 0; i < side_len; ++i) {
+				if (kind == 0) {
+					cells[i] = unit_ind * side_len + i;
+				}
+				else if (kind == 1) {
+					cells[i] = i * side_len + unit_ind;
+				}
+				else {
+					const sudoku_size_t square_col_ind = unit_ind % square_height;
+					const sudoku_size_t square_row_ind = unit_ind / square_height;
+					cells[i] = square_col_ind * square_width + square_row_ind * side_len * square_height
+						+ i % square_width + (i / square_width) * side_len;
+				}
+			}
+			for (sudoku_size_t num = 0; num < side_len; ++num) {
+				bool is_set = false;
+				guess_cases_t cases;
+				for (const sudoku_size_t cell_ind : cells) {
+					const sudoku_size_t data_ind = cell_ind * n_stored_per_cell;
+					if (s_data[data_ind] == num + 1) is_set = true;
+					else if (s_data[data_ind] == 0 && s_data[data_ind + 1 + num] == 2) cases.emplace_back(data_ind, num + 1);
+				}
+				if (!is_set) add(std::move(cases));
+			}
+		}
+		return guesses;
 	}
 
 	/// Whether a sudoku can be solved completely by \ref try_solving_easiest.
@@ -1063,17 +1116,19 @@ public:
 		return depth < depth_cap ? depth + 2 : max_level + 1;
 	}
 
-	/// Guessing depth needed to settle a sudoku, minimised over the guessed cells.
+	/// Guessing depth needed to settle a sudoku, minimised over the guesses.
 	///
 	/// \ref solve_count_rec_depth only counts the depth along the path to the
 	/// solution and always guesses in the first least uncertain cell, so it
 	/// ignores the effort of refuting the wrong guesses and depends on that
 	/// arbitrary choice. Here the level is the nesting depth of the whole
-	/// search tree: all candidates of a guessed cell have to be settled
-	/// (maximum over the candidates) and the cell is the one with the
-	/// shallowest tree among all cells tied for the fewest candidates
-	/// (minimum over the cells). A contradiction found by plain deduction
-	/// ends a branch at the current depth.
+	/// search tree: a guess splits the sudoku into cases (see
+	/// \ref least_uncertain_guesses: the candidates of a cell, or the cells of a
+	/// number in a row, column or square), all cases have to be settled
+	/// (maximum over the cases) and the guess is the one with the shallowest
+	/// tree among all guesses tied for the fewest cases (minimum over the
+	/// guesses). A contradiction found by plain deduction ends a branch at the
+	/// current depth.
 	///
 	/// @param s_data The sudoku (left unchanged).
 	/// @param rec_dep Current depth (number of guesses made so far).
@@ -1085,15 +1140,14 @@ public:
 		if (rec_dep + 1 >= best) return best;
 
 		rec_depth_t curr_best = best;
-		for (const sudoku_size_t cell_picked : least_uncertain_cells(work)) {
-			rec_depth_t cell_depth = rec_dep + 1;
-			for (sudoku_size_t i = 0; i < side_len && cell_depth < curr_best; ++i) {
-				if (work[cell_picked + 1 + i] != 2) continue;
+		for (const guess_cases_t & cases : least_uncertain_guesses(work)) {
+			rec_depth_t cases_depth = rec_dep + 1;
+			for (std::size_t i = 0; i < cases.size() && cases_depth < curr_best; ++i) {
 				sudoku_data_t guess = work;
-				guess[cell_picked] = i + 1;
-				cell_depth = std::max(cell_depth, solve_min_rec_depth(guess, rec_dep + 1, curr_best));
+				guess[cases[i].first] = cases[i].second;
+				cases_depth = std::max(cases_depth, solve_min_rec_depth(guess, rec_dep + 1, curr_best));
 			}
-			curr_best = std::min(curr_best, cell_depth);
+			curr_best = std::min(curr_best, cases_depth);
 		}
 		return curr_best;
 	}
